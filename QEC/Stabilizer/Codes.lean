@@ -20,9 +20,10 @@ Concrete stabilizer codes, organized by family:
 - `Small` — single-instance codes (Shor9, Steane7, [[5,1,3]], …)
 
 Construction boundary (not yet a concrete code family):
-- `Layer` — finite CSS/Tanner indexing and a certificate-based output
-    interface; it does not yet derive output stabilizers or a decoder from
-    arbitrary CSS input.
+- `Layer` — CSS input validation, ordered junction pairing, cuboid edge-qubit
+    indexing, and minimum-weight decoding for a supplied output-code
+    certificate; the paper's defect stabilizers are not yet constructed from
+    the input.
 
 The concrete concatenated codes (`Concat/`: Steane⊗Steane `[[49,1,9]]` and
 Steane⊗`[[4,2,2]]` `[[28,2,6]]`) are **parked on branch `claude/z3z6-parked`**
