@@ -134,11 +134,11 @@ lemma mulOp_operators_eq_identity_iff_of_types {n : ℕ} {p q : NQubitPauliOpera
       have hi :
           ((p i).mulOp (q i)).operator = PauliOperator.I := by
         have := congrArg (fun op => op i) h
-        simpa [NQubitPauliGroupElement.mulOp] using this
+        simpa [NQubitPauliGroupElement.mulOp, NQubitPauliOperator.identity] using this
       exact (PauliOperator.mulOp_operator_eq_I_iff_of_types (hp i) (hq i)).1 hi
     refine ⟨?_, ?_⟩
-    · ext i; simpa using (hcomp i).1
-    · ext i; simpa using (hcomp i).2
+    · ext i; simpa [NQubitPauliOperator.identity] using (hcomp i).1
+    · ext i; simpa [NQubitPauliOperator.identity] using (hcomp i).2
   · rintro ⟨rfl, rfl⟩
     ext i
     simp [NQubitPauliGroupElement.mulOp, NQubitPauliOperator.identity, PauliOperator.mulOp]

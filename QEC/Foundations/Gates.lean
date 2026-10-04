@@ -305,26 +305,6 @@ macro_rules
            <;> fin_cases i₂)
         | (fin_cases i)
     ))
-open Lean.Parser.Tactic in
-open Lean in
-/--
-`vec_expand_simp [rules]`:
-
-Proves goals equating `QuantumState`s by calling `vec_expand` and then solving
-each goal with `simp[rules]`
--/
-syntax (name := vec_expand_simp) "vec_expand_simp"
-  (" [" ((simpStar <|> simpErase <|> simpLemma),*,?) "]")? : tactic
-
-macro_rules
-  | `(tactic| vec_expand_simp $[[$rules,*]]?) => do
-    let rules' := rules.getD ⟨#[]⟩
-    `(tactic| (
-      vec_expand
-      all_goals
-        simp [$rules',*]
-    ))
-
 
 /-- Apply a matrix to a raw function `α → ℂ` (matrix-vector product). -/
 noncomputable abbrev applyMatrixVec' {α : Type*}
@@ -425,6 +405,29 @@ noncomputable instance smul_QuantumState_by_QuantumGate
   {α : Type*} [Fintype α] [DecidableEq α]
   (G : QuantumGate α) (ψ : QuantumState α) :
   (G • ψ).val = Matrix.mulVec (G.val) ψ.val := rfl
+
+/-- The gate action on a state coerces to matrix-vector multiplication. -/
+@[simp] lemma smul_QState_coe
+  {α : Type*} [Fintype α] [DecidableEq α]
+  (G : QuantumGate α) (ψ : QuantumState α) :
+  ((G • ψ : QuantumState α) : Vector α) = Matrix.mulVec (G.val) ψ.val := rfl
+
+open Lean.Parser.Tactic in
+open Lean in
+/-- Expand a state equality into amplitude coordinates and simplify each. -/
+syntax (name := vec_expand_simp) "vec_expand_simp"
+  (" [" ((simpStar <|> simpErase <|> simpLemma),*,?) "]")? : tactic
+
+macro_rules
+  | `(tactic| vec_expand_simp $[[$rules,*]]?) => do
+    let rules' := rules.getD ⟨#[]⟩
+    `(tactic| (
+      apply Subtype.ext
+      dsimp [smul_QuantumState_by_QuantumGate, applyGate]
+      vec_expand
+      all_goals
+        simp [$rules',*]
+    ))
 
 /-- A matrix is Hermitian when it equals its own conjugate transpose. -/
 def Hermitian {α : Type*} [DecidableEq α] [Fintype α] (M : Matrix α α ℂ) : Prop :=
@@ -721,11 +724,17 @@ lemma inv_S_val : inv_S.val = star S.val := by
 
 /-- X flips |0⟩ to |1⟩. -/
 @[simp] lemma X_on_ket0 : X • |0⟩ = |1⟩ := by
-  vec_expand_simp [Xmat, ket0, ket1]
+  apply Subtype.ext
+  change Matrix.mulVec X.val ket0.val = ket1.val
+  ext i
+  fin_cases i <;> norm_num [X, Xmat, ket0, ket1, Matrix.mulVec]
 
 /-- X flips |1⟩ to |0⟩. -/
 @[simp] lemma X_on_ket1 : X • |1⟩ = |0⟩ := by
-  vec_expand_simp [Xmat, ket0, ket1]
+  apply Subtype.ext
+  change Matrix.mulVec X.val ket1.val = ket0.val
+  ext i
+  fin_cases i <;> norm_num [X, Xmat, ket0, ket1, Matrix.mulVec]
 
 /-- Controlled version of a gate `g` on `k`, acting on `QubitBasis × k`.
 
@@ -787,18 +796,30 @@ by
 
 /-- CNOT maps |00⟩ to |00⟩. -/
 lemma CNOT_on_ket00 : CNOT • |00⟩ = |00⟩ := by
-  vec_expand_simp [Matrix.mulVec, CNOT, ket00]
+  apply Subtype.ext
+  change Matrix.mulVec CNOT.val ket00.val = ket00.val
+  vec_expand
+  all_goals simp [Matrix.mulVec, CNOT, controllize, X, Xmat, basisVec, ket00]
 
 /-- CNOT maps |01⟩ to |01⟩. -/
 lemma CNOT_on_ket01 : CNOT • |01⟩ = |01⟩ := by
-  vec_expand_simp[Matrix.mulVec, CNOT, ket01]
+  apply Subtype.ext
+  change Matrix.mulVec CNOT.val ket01.val = ket01.val
+  vec_expand
+  all_goals simp [Matrix.mulVec, CNOT, controllize, X, Xmat, basisVec, ket01]
 
 /-- CNOT maps |10⟩ to |11⟩. -/
 lemma CNOT_on_ket10 : CNOT • |10⟩ = |11⟩ := by
-  vec_expand_simp[Matrix.mulVec, CNOT, ket10, ket11, Xmat]
+  apply Subtype.ext
+  change Matrix.mulVec CNOT.val ket10.val = ket11.val
+  vec_expand
+  all_goals simp [Matrix.mulVec, CNOT, controllize, X, Xmat, basisVec, ket10, ket11]
 
 /-- CNOT maps |11⟩ to |10⟩. -/
 lemma CNOT_on_ket11 : CNOT • |11⟩ = |10⟩ := by
-  vec_expand_simp[Matrix.mulVec, CNOT, ket10, ket11, Xmat]
+  apply Subtype.ext
+  change Matrix.mulVec CNOT.val ket11.val = ket10.val
+  vec_expand
+  all_goals simp [Matrix.mulVec, CNOT, controllize, X, Xmat, basisVec, ket10, ket11]
 
 end Quantum

@@ -1,15 +1,25 @@
 import Mathlib.Tactic
 import QEC.Stabilizer.Framework.Core.Logical.CodeDistance
 
+/-!
+# Generic Minimum-Weight Decoder
+
+Exhaustive syndrome decoding for a supplied finite stabilizer code, with a
+logical-correction guarantee below half of a supplied distance lower bound.
+This is a correctness reference, not an efficient or Layer-specific decoder.
+-/
+
 namespace Quantum
 namespace StabilizerGroup
 
+/-- Enumerate the four single-qubit Pauli operators. -/
 private instance pauliOperatorFintype : Fintype PauliOperator where
   elems := {PauliOperator.I, PauliOperator.X, PauliOperator.Y, PauliOperator.Z}
   complete := by
     intro operator
     cases operator <;> simp
 
+/-- Represent an n-qubit Pauli by its phase and per-qubit operators. -/
 private def pauliElementEquiv (n : ℕ) :
     NQubitPauliGroupElement n ≃ (Fin 4 × (Fin n → PauliOperator)) where
   toFun p := (p.phasePower, p.operators)
@@ -23,6 +33,7 @@ private def pauliElementEquiv (n : ℕ) :
     cases p
     rfl
 
+/-- Obtain finiteness of n-qubit Paulis from their phase/operator representation. -/
 private noncomputable instance pauliElementFintype {n : ℕ} :
     Fintype (NQubitPauliGroupElement n) :=
   Fintype.ofEquiv (Fin 4 × (Fin n → PauliOperator)) (pauliElementEquiv n).symm
@@ -36,10 +47,10 @@ lemma pauliSupport_mul_subset {n : ℕ} (p q : NQubitPauliGroupElement n) :
   by_contra hnot
   have hpI : p.operators i = PauliOperator.I := by
     by_contra h
-    exact hnot (Or.inl ((NQubitPauliGroupElement.mem_support p i).2 h))
+    exact hnot (Finset.mem_union.mpr (Or.inl ((NQubitPauliGroupElement.mem_support p i).2 h)))
   have hqI : q.operators i = PauliOperator.I := by
     by_contra h
-    exact hnot (Or.inr ((NQubitPauliGroupElement.mem_support q i).2 h))
+    exact hnot (Finset.mem_union.mpr (Or.inr ((NQubitPauliGroupElement.mem_support q i).2 h)))
   have hprodI : (p * q).operators i = PauliOperator.I := by
     simp [NQubitPauliGroupElement.mul, NQubitPauliGroupElement.mulOp, hpI, hqI]
   exact (NQubitPauliGroupElement.mem_support (p * q) i).1 hi hprodI
@@ -58,17 +69,29 @@ lemma pauliWeight_mul_le {n : ℕ} (p q : NQubitPauliGroupElement n) :
     _ ≤ (NQubitPauliGroupElement.support p).card +
         (NQubitPauliGroupElement.support q).card := Finset.card_union_le _ _
 
+/-- The global phase `-1` commutes with every Pauli element. -/
 private lemma minusOne_mul_comm {n : ℕ} (p : NQubitPauliGroupElement n) :
     NQubitPauliGroupElement.minusOne n * p = p * NQubitPauliGroupElement.minusOne n := by
-  ext <;>
-    simp [NQubitPauliGroupElement.mul, NQubitPauliGroupElement.minusOne,
-      NQubitPauliGroupElement.mulOp, add_comm]
+  apply NQubitPauliGroupElement.ext
+  · simp [NQubitPauliGroupElement.mul, NQubitPauliGroupElement.minusOne,
+      NQubitPauliGroupElement.mulOp_identity_left_phase,
+      NQubitPauliGroupElement.mulOp_identity_right_phase, add_comm]
+  · change
+      (NQubitPauliGroupElement.mulOp (NQubitPauliOperator.identity n) p.operators).operators =
+        (NQubitPauliGroupElement.mulOp p.operators (NQubitPauliOperator.identity n)).operators
+    rw [NQubitPauliGroupElement.mulOp_identity_left_op,
+      ← NQubitPauliGroupElement.one_operators,
+      NQubitPauliGroupElement.mulOp_identity_right_op]
 
+/-- The global phase `-1` squares to the identity element. -/
 private lemma minusOne_sq (n : ℕ) :
     NQubitPauliGroupElement.minusOne n * NQubitPauliGroupElement.minusOne n = 1 := by
-  simpa [NQubitPauliGroupElement.minusOne_inv] using
-    (inv_mul_cancel (NQubitPauliGroupElement.minusOne n))
+  ext <;>
+    simp [NQubitPauliGroupElement.mul, NQubitPauliGroupElement.minusOne,
+      NQubitPauliGroupElement.one, NQubitPauliGroupElement.mulOp,
+      NQubitPauliOperator.identity, PauliOperator.mulOp]
 
+/-- Equal anticommutation parity with both factors implies commutation with their product. -/
 private theorem commutes_mul_of_same_anticommutes {n : ℕ}
     (g p e : NQubitPauliGroupElement n)
     (hsame : NQubitPauliGroupElement.Anticommute g p ↔
@@ -104,6 +127,20 @@ private theorem commutes_mul_of_same_anticommutes {n : ℕ}
       _ = p * (e * g) := by rw [hcomm_ge]
       _ = (p * e) * g := by rw [← mul_assoc]
 
+/-! ## Syndromes -/
+
+/-- A binary syndrome bit for each stabilizer generator, in generator-list order. -/
+abbrev StabilizerSyndrome {n k : ℕ} (code : StabilizerCode n k) :=
+  Fin code.generatorsList.length → Bool
+
+/-- Compute the syndrome of a Pauli by recording which generators anticommute with it. -/
+noncomputable def stabilizerSyndrome {n k : ℕ} (code : StabilizerCode n k)
+    (error : NQubitPauliGroupElement n) : StabilizerSyndrome code := by
+  classical
+  exact fun i => decide
+    (NQubitPauliGroupElement.Anticommute (code.generatorsList.get i) error)
+
+/-- The product of two errors with the same syndrome centralizes the code. -/
 private theorem same_syndrome_product_mem_centralizer {n k : ℕ}
     (code : StabilizerCode n k) (recovery error : NQubitPauliGroupElement n)
     (hsame : stabilizerSyndrome code recovery = stabilizerSyndrome code error) :
@@ -121,7 +158,8 @@ private theorem same_syndrome_product_mem_centralizer {n k : ℕ}
       (code.generatorsList.get i) error) at hbit
   have hbit' : decide (NQubitPauliGroupElement.Anticommute generator recovery) =
       decide (NQubitPauliGroupElement.Anticommute generator error) := by
-    simpa [hi] using hbit
+    rw [← hi]
+    exact hbit
   have hanticommutes : NQubitPauliGroupElement.Anticommute generator recovery ↔
       NQubitPauliGroupElement.Anticommute generator error := by
     constructor
@@ -133,22 +171,13 @@ private theorem same_syndrome_product_mem_centralizer {n k : ℕ}
       simp [hrec, herr] at hbit'
   exact commutes_mul_of_same_anticommutes generator recovery error hanticommutes
 
-/-- A binary syndrome bit for each stabilizer generator, in generator-list order. -/
-abbrev StabilizerSyndrome {n k : ℕ} (code : StabilizerCode n k) :=
-  Fin code.generatorsList.length → Bool
-
-/-- Compute the syndrome of a Pauli by recording which generators anticommute with it. -/
-noncomputable def stabilizerSyndrome {n k : ℕ} (code : StabilizerCode n k)
-    (error : NQubitPauliGroupElement n) : StabilizerSyndrome code := by
-  classical
-  exact fun i => decide
-    (NQubitPauliGroupElement.Anticommute (code.generatorsList.get i) error)
-
+/-- The finite set of Pauli errors realizing a requested syndrome. -/
 private noncomputable def syndromeCandidates {n k : ℕ} (code : StabilizerCode n k)
     (target : StabilizerSyndrome code) : Finset (NQubitPauliGroupElement n) := by
   classical
   exact Finset.univ.filter (fun error => stabilizerSyndrome code error = target)
 
+/-- Every nonempty finite syndrome class contains a minimum-weight recovery. -/
 private theorem exists_minimum_weight_syndrome_recovery {n k : ℕ}
     (code : StabilizerCode n k) (target : StabilizerSyndrome code)
     (hcandidates : (syndromeCandidates code target).Nonempty) :
@@ -242,24 +271,28 @@ theorem minimumWeightRecovery_corrects_below_half_distance {n k : ℕ}
     by_contra hno_stabilizer
     have hcentral : combined ∈ centralizer code.toStabilizerGroup :=
       same_syndrome_product_mem_centralizer code recovery error hsame
-    have hnot_mem : combined ∉ code.toStabilizerGroup.toSubgroup := by
-      intro hmem
-      exact hno_stabilizer ⟨combined, hmem, rfl⟩
     have hno_same_operators : ∀ s ∈ code.toStabilizerGroup.toSubgroup,
         s.operators ≠ combined.operators := by
       intro s hs heq
       exact hno_stabilizer ⟨s, hs, heq⟩
     have hlogical : IsNontrivialLogicalOperator combined code.toStabilizerGroup :=
       (IsNontrivialLogicalOperator_iff combined code.toStabilizerGroup).2
-        ⟨hcentral, hnot_mem, hno_same_operators⟩
+        ⟨hcentral, hno_same_operators⟩
     have hpositive : 0 < NQubitPauliGroupElement.weight combined :=
       Nat.pos_of_ne_zero hzero
     have hdistance_lower := hdistance_lower_bound combined hlogical hpositive
     have hproduct_upper :
         NQubitPauliGroupElement.weight combined ≤
           2 * NQubitPauliGroupElement.weight error := by
-      have hmul := pauliWeight_mul_le recovery error
-      omega
+      calc
+      NQubitPauliGroupElement.weight combined =
+        NQubitPauliGroupElement.weight (recovery * error) := rfl
+      _ ≤ NQubitPauliGroupElement.weight recovery +
+        NQubitPauliGroupElement.weight error := pauliWeight_mul_le recovery error
+      _ ≤ NQubitPauliGroupElement.weight error +
+        NQubitPauliGroupElement.weight error :=
+          Nat.add_le_add_right hminimum _
+      _ = 2 * NQubitPauliGroupElement.weight error := by rw [two_mul]
     omega
 
 /-- The minimum-weight decoder corrects every error of weight strictly below `distance / 2`.
@@ -284,8 +317,10 @@ theorem minimumWeightDecoder_corrects_below_half_distance {n k : ℕ}
     minimumWeightDecoder_spec code target error herror
   have hdecoded_eq : recovery = decoded := Option.some.inj (hdecoded.symm.trans hdecode)
   subst recovery
+  have hsame' : stabilizerSyndrome code decoded = stabilizerSyndrome code error :=
+    hsyndrome.trans herror.symm
   exact minimumWeightRecovery_corrects_below_half_distance code distance hdistance_lower_bound
-    decoded error hsyndrome (hminimum error herror) hweight
+    decoded error hsame' (hminimum error herror) hweight
 
 end StabilizerGroup
 end Quantum

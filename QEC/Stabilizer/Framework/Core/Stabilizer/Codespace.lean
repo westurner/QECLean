@@ -94,18 +94,22 @@ lemma trace_eq_zero_of_ne_identity (g : NQubitPauliGroupElement n)
 
 /-- The trace of the stabilizer sum is 2^n. -/
 lemma trace_stabilizerSum (S : StabilizerGroup n) : (stabilizerSum S).trace = (2 : ℂ)^n := by
+  classical
   have h_trace_sum : ∑ g ∈ S.toSubgroup.carrier.toFinset, (g.toMatrix).trace = 2 ^ n := by
     have h_trace_sum : ∑ g ∈ S.toSubgroup.carrier.toFinset, (g.toMatrix).trace =
         ∑ g ∈ S.toSubgroup.carrier.toFinset, if g = 1 then 2 ^ n else 0 := by
       apply Finset.sum_congr rfl
       intro g hg
       by_cases h : g.operators = NQubitPauliOperator.identity n
-      <;> simp_all +decide [trace_eq_zero_of_ne_identity]
-      · rw [if_pos]
-        · rw [eq_one_of_mem_stabilizer_and_is_scalar S g hg h]
-          norm_num [NQubitPauliGroupElement.toMatrix_one]
-        · have := eq_one_of_mem_stabilizer_and_is_scalar S g hg h; aesop
-      · aesop
+      · have h_one : g = (1 : NQubitPauliGroupElement n) :=
+          eq_one_of_mem_stabilizer_and_is_scalar S g (Set.mem_toFinset.mp hg) h
+        rw [h_one]
+        norm_num [NQubitPauliGroupElement.toMatrix_one]
+      · have h_ne_one : g ≠ (1 : NQubitPauliGroupElement n) := by
+          intro h_one
+          apply h
+          simpa using congrArg NQubitPauliGroupElement.operators h_one
+        rw [trace_eq_zero_of_ne_identity g h, if_neg h_ne_one]
     rw [h_trace_sum, Finset.sum_ite_eq']
     split_ifs with h
     · rfl
@@ -128,6 +132,7 @@ lemma stabilizerSum_ne_zero (S : StabilizerGroup n) : stabilizerSum S ≠ 0 := b
     Specifically, for any g ∈ S, g * P = P. -/
 lemma mul_stabilizerSum_eq (S : StabilizerGroup n) (g : NQubitPauliGroupElement n)
     (hg : g ∈ S.toSubgroup) : g.toMatrix * stabilizerSum S = stabilizerSum S := by
+  classical
   have h_mul : ∀ h ∈ S.toSubgroup, g * h ∈ S.toSubgroup := fun h hh => S.toSubgroup.mul_mem hg hh
   have h_bij :
       Finset.image (fun h => g * h) (Finset.univ.filter (fun h => h ∈ S.toSubgroup)) =
@@ -138,9 +143,17 @@ lemma mul_stabilizerSum_eq (S : StabilizerGroup n) (g : NQubitPauliGroupElement 
       ∑ h ∈ Finset.univ.filter (fun h => h ∈ S.toSubgroup), (g * h).toMatrix =
         ∑ h ∈ Finset.univ.filter (fun h => h ∈ S.toSubgroup), h.toMatrix := by
     conv_rhs => rw [← h_bij, Finset.sum_image (Finset.card_image_iff.mp <| by aesop)]
-  convert h_sum_eq using 1
-  simp only [stabilizerSum, Finset.mul_sum _ _ _]
-  exact Finset.sum_congr rfl fun x hx => by exact Eq.symm (NQubitPauliGroupElement.toMatrix_mul g x)
+  change
+    g.toMatrix * (∑ h ∈ Finset.univ.filter (fun h => h ∈ S.toSubgroup), h.toMatrix) =
+      ∑ h ∈ Finset.univ.filter (fun h => h ∈ S.toSubgroup), h.toMatrix
+  rw [Matrix.mul_sum]
+  calc
+    (∑ h ∈ Finset.univ.filter (fun h => h ∈ S.toSubgroup), g.toMatrix * h.toMatrix) =
+        ∑ h ∈ Finset.univ.filter (fun h => h ∈ S.toSubgroup), (g * h).toMatrix := by
+      apply Finset.sum_congr rfl
+      intro h hh
+      exact (NQubitPauliGroupElement.toMatrix_mul g h).symm
+    _ = ∑ h ∈ Finset.univ.filter (fun h => h ∈ S.toSubgroup), h.toMatrix := h_sum_eq
 
 /-- The codespace of a stabilizer group is always non-empty. -/
 lemma exists_codespace_state (S : StabilizerGroup n) : ∃ ψ : NQubitState n, IsInCodespace ψ S := by

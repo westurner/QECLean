@@ -94,6 +94,7 @@ lemma toMatrix_mul (p q : NQubitPauliGroupElement n) :
       convert
         congr_arg (fun m => m (b₁ i) (b₂ i)) (h_single_qubit (p.operators i) (q.operators i))
           using 1
+      simp [Matrix.mul_apply]
     simp_all +decide [Finset.prod_mul_distrib, Matrix.mul_apply]
     have h_phasePowerToComplex :
         PauliGroupElement.phasePowerToComplex (p.mul q).phasePower =
@@ -102,34 +103,36 @@ lemma toMatrix_mul (p q : NQubitPauliGroupElement n) :
             (∏ i,
               PauliGroupElement.phasePowerToComplex
                 ((p.operators i).mulOp (q.operators i)).phasePower) := by
-      have h_phasePowerToComplex :
+      have h_phase_add3 :
           ∀ (a b c : Fin 4),
                 PauliGroupElement.phasePowerToComplex (a + b + c) =
               PauliGroupElement.phasePowerToComplex a *
                 PauliGroupElement.phasePowerToComplex b *
                 PauliGroupElement.phasePowerToComplex c := by
         exact fun a b c ↦ Eq.symm (PauliGroupElement.phasePowerToComplex_add3 a b c)
-      convert
-        h_phasePowerToComplex p.phasePower q.phasePower
-            (∑ i : Fin n,
-              ((p.operators i).mulOp (q.operators i) |> PauliGroupElement.phasePower))
-          using 1
-      have h_phasePowerToComplex :
-          ∀ (s : Finset (Fin n)),
-            (∏ i ∈ s,
-                PauliGroupElement.phasePowerToComplex
-                  ((p.operators i).mulOp (q.operators i)).phasePower) =
+      have h_local_phase :
+          (∏ i : Fin n,
               PauliGroupElement.phasePowerToComplex
-                (∑ i ∈ s, ((p.operators i).mulOp (q.operators i)).phasePower) := by
-        intro s
-        induction s using Finset.induction <;>
-          simp_all +decide [Finset.sum_insert, Finset.prod_insert]
-        (expose_names;
-          exact
-            PauliGroupElement.phasePowerToComplex_add
+                ((p.operators i).mulOp (q.operators i)).phasePower) =
+            PauliGroupElement.phasePowerToComplex
+              (∑ i : Fin n, ((p.operators i).mulOp (q.operators i)).phasePower) := by
+        have h_phase_on_finset :
+            ∀ s : Finset (Fin n),
+              (∏ i ∈ s,
+                  PauliGroupElement.phasePowerToComplex
+                    ((p.operators i).mulOp (q.operators i)).phasePower) =
+                PauliGroupElement.phasePowerToComplex
+                  (∑ i ∈ s, ((p.operators i).mulOp (q.operators i)).phasePower) := by
+          intro s
+          induction s using Finset.induction <;>
+            simp_all +decide [Finset.sum_insert, Finset.prod_insert]
+          (expose_names;
+            exact PauliGroupElement.phasePowerToComplex_add
               ((p.operators a).mulOp (q.operators a)).phasePower
               (∑ i ∈ s, ((p.operators i).mulOp (q.operators i)).phasePower))
-      rw [h_phasePowerToComplex]
+        simpa using h_phase_on_finset (Finset.univ : Finset (Fin n))
+      simp only [NQubitPauliGroupElement.mul, NQubitPauliGroupElement.mulOp]
+      rw [h_phase_add3, ← h_local_phase]
     simp_all +decide [ mul_comm, mul_left_comm ];
     convert
       congr_arg
@@ -212,7 +215,8 @@ lemma NQubitPauliOperator.trace_matrix_mul (p q : NQubitPauliOperator n) :
       ( p i |> PauliOperator.toMatrix ) b k * ( q i |> PauliOperator.toMatrix ) k b )
       using 3 ; ring_nf
       rw [ Finset.prod_mul_distrib ];
-    convert h_fubini using 1
+    simp only [Matrix.trace, Matrix.mul_apply, NQubitPauliOperator.toMatrix]
+    exact h_fubini
 
 
 -- Provide decidable equality to state lemmas using `if p = q then ... else ...`.

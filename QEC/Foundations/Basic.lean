@@ -350,7 +350,7 @@ state: `nQubitBasisVec n b` paired with its unit-norm proof from
 This is what the Dirac notation in `KetNotation.lean` elaborates to for `n ≥ 4`.
 -/
 noncomputable def nQubitKet (n : ℕ) (b : NQubitBasis n) : NQubitState n :=
-  ⟨nQubitBasisVec n b, norm_basisVec b⟩
+  ⟨nQubitBasisVec n b, by simpa [nQubitBasisVec] using norm_basisVec b⟩
 
 /-- Two-qubit computational basis state |00⟩. -/
 noncomputable def ket00 : TwoQubitState :=

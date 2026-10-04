@@ -191,36 +191,34 @@ private lemma maps_to_codespace_of_conjugation (U : NQubitGate n) (S : Stabilize
   by_cases hv : ∑ i, ‖v i‖ ^ 2 = 0;
   · simp_all +decide [Finset.sum_eq_zero_iff_of_nonneg];
     ext i; simp +decide [ hv, Matrix.mulVec, dotProduct ] ;
-  · have := h_conj ⟨(1 / Real.sqrt (∑ i, ‖v i‖ ^ 2)) • v, ?_⟩ ?_ <;> simp_all +decide
-    any_goals simp +decide
-      [mul_pow, abs_of_nonneg (Real.sqrt_nonneg _),
-        Real.sq_sqrt (Finset.sum_nonneg fun _ _ => sq_nonneg _)]
-    any_goals rw [ ← Finset.mul_sum _ _ _, inv_mul_cancel₀ hv ];
-    · have := this g hg
-      simp_all +decide
-      convert congr_arg (fun x : NQubitVec n => (Real.sqrt (∑ i, ‖v i‖ ^ 2)) • x) this using 1 <;>
-        norm_num [Matrix.mulVec_smul, smul_smul]
-      · rw [show ∀ (M : Matrix (NQubitBasis n) (NQubitBasis n) ℂ) (b : ℝ) (w : NQubitVec n),
-                M.mulVec (b • w) = b • M.mulVec w from fun _ _ _ => Matrix.mulVec_smul _ _ _,
-            show ∀ (a b : ℝ) (x : NQubitVec n), a • b • x = (a * b) • x from
-              fun _ _ _ => smul_smul _ _ _,
-            mul_inv_cancel₀ (ne_of_gt (Real.sqrt_pos.mpr
-              (lt_of_le_of_ne (Finset.sum_nonneg fun _ _ => sq_nonneg _) (Ne.symm hv))))]
-        exact (one_smul ℝ _).symm
-      · rw [show ∀ (M : Matrix (NQubitBasis n) (NQubitBasis n) ℂ) (b : ℝ) (w : NQubitVec n),
-                M.mulVec (b • w) = b • M.mulVec w from fun _ _ _ => Matrix.mulVec_smul _ _ _,
-            show ∀ (a b : ℝ) (x : NQubitVec n), a • b • x = (a * b) • x from
-              fun _ _ _ => smul_smul _ _ _,
-            mul_inv_cancel₀ (ne_of_gt (Real.sqrt_pos.mpr
-              (lt_of_le_of_ne (Finset.sum_nonneg fun _ _ => sq_nonneg _) (Ne.symm hv))))]
-        exact (one_smul ℝ _).symm
-    · intro g hg
-      specialize hv₁ g hg
-      simp_all +decide
-      simp_all +decide [ IsStabilizedBy, IsStabilizedVec ];
-      rw [show ∀ (M : Matrix (NQubitBasis n) (NQubitBasis n) ℂ) (b : ℝ) (w : NQubitVec n),
-              M.mulVec (b • w) = b • M.mulVec w from fun _ _ _ => Matrix.mulVec_smul _ _ _,
-          hv₁]
+  · have hnp : 0 < Quantum.norm v := by
+      simp only [Quantum.norm]
+      apply Real.sqrt_pos.mpr
+      exact lt_of_le_of_ne
+        (Finset.sum_nonneg fun _ _ => sq_nonneg _)
+        (Ne.symm hv)
+    set c : ℂ := ↑((Quantum.norm v)⁻¹ : ℝ)
+    have hc_ne : c ≠ 0 := Complex.ofReal_ne_zero.mpr (ne_of_gt (inv_pos.mpr hnp))
+    have hw_norm : Quantum.norm (c • v) = 1 := by
+      simp only [Quantum.norm, Pi.smul_apply, smul_eq_mul, norm_mul, mul_pow, ← Finset.mul_sum]
+      rw [Real.sqrt_mul (sq_nonneg _)]
+      conv_lhs => rw [show √(‖c‖ ^ 2) = ‖c‖ from by
+        rw [Real.sqrt_sq_eq_abs]
+        exact abs_of_nonneg (le_of_lt (by positivity))]
+      rw [Complex.norm_real, Real.norm_of_nonneg (le_of_lt (inv_pos.mpr hnp))]
+      exact inv_mul_cancel₀ (ne_of_gt hnp)
+    let ψ : NQubitState n := ⟨c • v, hw_norm⟩
+    have hψ_mem : ψ.val ∈ codespaceSubmodule S :=
+      (codespaceSubmodule S).smul_mem c hv₁
+    have hψ_code : IsInCodespace ψ S :=
+      (mem_codespace_iff_mem_submodule ψ S).2 hψ_mem
+    have h_image_code := h_conj ψ hψ_code
+    have h_stable : Matrix.mulVec g.toMatrix (U.val.mulVec (c • v)) = U.val.mulVec (c • v) := by
+      simpa [IsInCodespace, IsStabilizedBy, IsStabilizedVec, smul_QState_val] using h_image_code g hg
+    have hv_scale : v = c⁻¹ • (c • v) := by
+      rw [smul_smul, inv_mul_cancel₀ hc_ne, one_smul]
+    rw [hv_scale]
+    rw [Matrix.mulVec_smul, Matrix.mulVec_smul, h_stable, Matrix.mulVec_smul]
 
 /-- The logical gate group for S: unitaries that map the codespace to itself. -/
 def logicalGateGroup (S : StabilizerGroup n) : Subgroup (NQubitGate n) where

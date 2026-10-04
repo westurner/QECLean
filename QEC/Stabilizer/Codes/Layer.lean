@@ -5,25 +5,68 @@ import QEC.Stabilizer.Framework.Core.CSS.CSSCommutationLemmas
 import QEC.Stabilizer.Framework.Core.Logical.CodeDistance
 import QEC.Stabilizer.Framework.Core.Logical.Decoder
 
+/-!
+# Layer-Code Construction Boundary
+
+Finite indexing and selected checks for a 3D Layer-code construction. This
+module records CSS input data and an output-code certificate; it does not yet
+construct the paper's complete output stabilizer code or prove its asymptotic
+parameter bounds.
+-/
+
 namespace Quantum
 namespace Stabilizer
 
 open scoped BigOperators
 
-/-!
-# Layer-code construction boundary
+/-! ## Formalization changelog
 
-This module formalizes the finite combinatorial layer used by the Layer-code
-construction of Williamson and Baspin. An input CSS check system supplies
-physical-qubit, X-check, and Z-check indices together with the binary CSS
-commutation law. Each input item is assigned a surface-code layer, and the
-Tanner incidences define the junctions.
+Compared with branch `add-layer-codes`, this module now adds the following
+Lean artifacts around the construction described in Williamson and Baspin:
 
-The `LayerCode` structure packages an actual QECLean `StabilizerCode` as the
-output certificate. A generic exhaustive minimum-weight decoder is provided
-for that certificate, with a correction guarantee below half the supplied
-distance lower bound. The layer-code defect stabilizers are not yet constructed
-from the CSS input.
+The baseline branch already contained `checkWeight`, the basic binary CSS
+input/weight/commutation record, the three layer kinds and planes, finite layer
+and cell indices, Tanner-incidence junction types, and a certificate-based
+`LayerCode` wrapper. Those are baseline scaffolding, not additions in this
+changelog.
+
+- `CSSLayerInput` ties the binary check rows to an actual QECLean input code,
+  including its logical-qubit count and a supplied input-distance lower bound.
+- `LayerLatticeEdge` gives a finite oriented-edge indexing of a cuboid, with
+  an exact cardinality theorem and a numbering equivalence to QECLean's `Fin`
+  qubit indices. This exact finite grid is a Lean modeling choice; its boundary
+  conventions and count still need reconciliation with the paper's lattice
+  spacing and asymptotic physical-qubit count.
+- X/Z edge-support lifts, support/weight lemmas, and candidate four-edge
+  plaquettes and interior stars are defined for the three layer orientations.
+  Each homogeneous candidate family generates its own stabilizer subgroup;
+  these subgroups are not combined because their cross-commutation is not yet
+  proved.
+- `css_check_overlap_even` derives even overlap from the binary CSS law.
+  `orderedPairing` then pairs the overlap in the canonical finite order, and
+  the endpoint and y-segment lemmas formalize the matching used at X/Z layer
+  intersections. The paper describes this matching; the Lean proofs are new.
+- X-, Z-, and Y-oriented line-defect edge sets are indexed from Tanner
+  incidences and matched overlaps. X/Z incidences are classified as first,
+  middle, last, or single within their ordered check support. Y crossings are
+  partitioned into matched nontrivial segments and remaining trivial edges.
+- `LayerPointDefect` and the bulk/boundary vertex sets formalize geometric
+  intersections of distinct line supports. They do not yet encode the paper's
+  individual point-defect check patterns.
+- `QEC.Stabilizer.Framework.Core.Logical.Decoder` adds an exhaustive,
+  minimum-weight syndrome decoder for any supplied finite stabilizer code,
+  with a proof of correction below half a supplied distance lower bound. This
+  generic decoder is not part of the paper, which leaves specialized decoding
+  for future work; exhaustive search is not intended as an efficient decoder.
+- The `LayerCode` output size is tied to `LayerLatticeEdge`, and its distance
+  premise is a lower bound rather than an exact-distance claim. However,
+  `outputCode` remains an independently supplied `StabilizerCode` certificate.
+
+The paper already describes the three layer orientations, Tanner incidences,
+the line/point defects, the check-weight-six bound, and the resulting code
+parameter scaling. The Lean additions above formalize selected finite data and
+generic consequences; they do not establish a new physical result or yet
+reproduce the paper's complete layer-code construction.
 
 References:
 * https://errorcorrectionzoo.org/c/surface
@@ -124,6 +167,7 @@ inductive LayerPlane
   | yz
   deriving DecidableEq, Repr
 
+/-- Assign the surface-code plane associated with each layer kind. -/
 def LayerKind.plane : LayerKind → LayerPlane
   | .physicalQubit => .xz
   | .xCheck => .xy
@@ -143,12 +187,15 @@ def layerKind {n nX nZ : ℕ} : LayerIndex n nX nZ → LayerKind
 def layerPlane {n nX nZ : ℕ} (layer : LayerIndex n nX nZ) : LayerPlane :=
   (layerKind layer).plane
 
+/-- A physical-qubit layer lies in an xz plane. -/
 @[simp] lemma layerPlane_physical {n nX nZ : ℕ} (q : Fin n) :
     layerPlane (Sum.inl q : LayerIndex n nX nZ) = LayerPlane.xz := rfl
 
+/-- An X-check layer lies in an xy plane. -/
 @[simp] lemma layerPlane_xCheck {n nX nZ : ℕ} (x : Fin nX) :
     layerPlane (Sum.inr (Sum.inl x) : LayerIndex n nX nZ) = LayerPlane.xy := rfl
 
+/-- A Z-check layer lies in a yz plane. -/
 @[simp] lemma layerPlane_zCheck {n nX nZ : ℕ} (z : Fin nZ) :
     layerPlane (Sum.inr (Sum.inr z) : LayerIndex n nX nZ) = LayerPlane.yz := rfl
 
@@ -156,6 +203,7 @@ def layerPlane {n nX nZ : ℕ} (layer : LayerIndex n nX nZ) : LayerPlane :=
 abbrev LayerCell (n nX nZ side : ℕ) : Type :=
   LayerIndex n nX nZ × Fin side × Fin side
 
+/-- Count the disjoint layer indices for data qubits and both check families. -/
 @[simp] lemma card_layerIndex (n nX nZ : ℕ) :
     Fintype.card (LayerIndex n nX nZ) = n + nX + nZ := by
   simp [LayerIndex]
@@ -175,7 +223,7 @@ and X checks. Each axis has one extra vertex for its two boundaries. -/
 abbrev LayerLatticeEdge (n nX nZ : ℕ) : Type :=
   (Fin nZ × Fin (n + 1) × Fin (nX + 1)) ⊕
     ((Fin (nZ + 1) × Fin n × Fin (nX + 1)) ⊕
-      (Fin (nZ + 1) × Fin (n + 1) × Fin nX)
+      (Fin (nZ + 1) × Fin (n + 1) × Fin nX))
 
 /-- The exact number of edge-qubits in the finite cuboid lattice. -/
 lemma card_layerLatticeEdge (n nX nZ : ℕ) :
@@ -208,62 +256,83 @@ noncomputable def layerZPauli {n nX nZ : ℕ}
   NQubitPauliGroupElement.ofOperator (fun q =>
     if (layerEdgeEquiv n nX nZ).symm q ∈ support then PauliOperator.Z else PauliOperator.I)
 
+/-- The Z-lift's output support is the image of its lattice-edge support. -/
 lemma support_layerZPauli {n nX nZ : ℕ}
     (support : Finset (LayerLatticeEdge n nX nZ)) :
     NQubitPauliGroupElement.support (layerZPauli support) =
       support.image (layerEdgeEquiv n nX nZ) := by
   classical
+  change NQubitPauliOperator.support (layerZPauli support).operators =
+    support.image (layerEdgeEquiv n nX nZ)
   ext q
-  simp only [NQubitPauliGroupElement.support, NQubitPauliOperator.support,
-    Finset.mem_filter, Finset.mem_univ, true_and, NQubitPauliGroupElement.ofOperator_operators,
-    layerZPauli]
-  change ((layerEdgeEquiv n nX nZ).symm q ∈ support) ↔
-    ∃ edge ∈ support, layerEdgeEquiv n nX nZ edge = q
+  rw [NQubitPauliOperator.mem_support, Finset.mem_image]
+  change (if (layerEdgeEquiv n nX nZ).symm q ∈ support then PauliOperator.Z else PauliOperator.I) ≠
+      PauliOperator.I ↔ ∃ edge ∈ support, layerEdgeEquiv n nX nZ edge = q
   constructor
   · intro h
-    exact ⟨(layerEdgeEquiv n nX nZ).symm q, h, Equiv.apply_symm_apply _ _⟩
+    by_cases hmem : (layerEdgeEquiv n nX nZ).symm q ∈ support
+    · exact ⟨(layerEdgeEquiv n nX nZ).symm q, hmem, Equiv.apply_symm_apply _ _⟩
+    · simp [hmem] at h
   · rintro ⟨edge, hedge, hq⟩
     have heq : edge = (layerEdgeEquiv n nX nZ).symm q := by
       calc
         edge = (layerEdgeEquiv n nX nZ).symm (layerEdgeEquiv n nX nZ edge) :=
           (Equiv.symm_apply_apply _ _).symm
         _ = (layerEdgeEquiv n nX nZ).symm q := by rw [hq]
-    simpa [heq] using hedge
+    have hmem : (layerEdgeEquiv n nX nZ).symm q ∈ support := by
+      simpa [heq] using hedge
+    simp [hmem]
 
+/-- The Z-lift preserves the cardinality of its lattice-edge support. -/
 lemma weight_layerZPauli {n nX nZ : ℕ}
     (support : Finset (LayerLatticeEdge n nX nZ)) :
     NQubitPauliGroupElement.weight (layerZPauli support) = support.card := by
-  rw [NQubitPauliGroupElement.weight, NQubitPauliOperator.weight, support_layerZPauli]
+  have hSupport : NQubitPauliOperator.support (layerZPauli support).operators =
+      support.image (layerEdgeEquiv n nX nZ) := by
+    simpa [NQubitPauliGroupElement.support, layerZPauli] using support_layerZPauli support
+  change (NQubitPauliOperator.support (layerZPauli support).operators).card = support.card
+  rw [hSupport]
   exact Finset.card_image_of_injective _ (layerEdgeEquiv n nX nZ).injective
 
+/-- The X-lift's output support is the image of its lattice-edge support. -/
 lemma support_layerXPauli {n nX nZ : ℕ}
     (support : Finset (LayerLatticeEdge n nX nZ)) :
     NQubitPauliGroupElement.support (layerXPauli support) =
       support.image (layerEdgeEquiv n nX nZ) := by
   classical
+  change NQubitPauliOperator.support (layerXPauli support).operators =
+    support.image (layerEdgeEquiv n nX nZ)
   ext q
-  simp only [NQubitPauliGroupElement.support, NQubitPauliOperator.support,
-    Finset.mem_filter, Finset.mem_univ, true_and, NQubitPauliGroupElement.ofOperator_operators,
-    layerXPauli]
-  change ((layerEdgeEquiv n nX nZ).symm q ∈ support) ↔
-    ∃ edge ∈ support, layerEdgeEquiv n nX nZ edge = q
+  rw [NQubitPauliOperator.mem_support, Finset.mem_image]
+  change (if (layerEdgeEquiv n nX nZ).symm q ∈ support then PauliOperator.X else PauliOperator.I) ≠
+      PauliOperator.I ↔ ∃ edge ∈ support, layerEdgeEquiv n nX nZ edge = q
   constructor
   · intro h
-    exact ⟨(layerEdgeEquiv n nX nZ).symm q, h, Equiv.apply_symm_apply _ _⟩
+    by_cases hmem : (layerEdgeEquiv n nX nZ).symm q ∈ support
+    · exact ⟨(layerEdgeEquiv n nX nZ).symm q, hmem, Equiv.apply_symm_apply _ _⟩
+    · simp [hmem] at h
   · rintro ⟨edge, hedge, hq⟩
     have heq : edge = (layerEdgeEquiv n nX nZ).symm q := by
       calc
         edge = (layerEdgeEquiv n nX nZ).symm (layerEdgeEquiv n nX nZ edge) :=
           (Equiv.symm_apply_apply _ _).symm
         _ = (layerEdgeEquiv n nX nZ).symm q := by rw [hq]
-    simpa [heq] using hedge
+    have hmem : (layerEdgeEquiv n nX nZ).symm q ∈ support := by
+      simpa [heq] using hedge
+    simp [hmem]
 
+/-- The X-lift preserves the cardinality of its lattice-edge support. -/
 lemma weight_layerXPauli {n nX nZ : ℕ}
     (support : Finset (LayerLatticeEdge n nX nZ)) :
     NQubitPauliGroupElement.weight (layerXPauli support) = support.card := by
-  rw [NQubitPauliGroupElement.weight, NQubitPauliOperator.weight, support_layerXPauli]
+  have hSupport : NQubitPauliOperator.support (layerXPauli support).operators =
+      support.image (layerEdgeEquiv n nX nZ) := by
+    simpa [NQubitPauliGroupElement.support, layerXPauli] using support_layerXPauli support
+  change (NQubitPauliOperator.support (layerXPauli support).operators).card = support.card
+  rw [hSupport]
   exact Finset.card_image_of_injective _ (layerEdgeEquiv n nX nZ).injective
 
+/-- A Z-lift contains only Z and identity factors. -/
 lemma layerZPauli_isZType {n nX nZ : ℕ}
     (support : Finset (LayerLatticeEdge n nX nZ)) :
     NQubitPauliGroupElement.IsZTypeElement (layerZPauli support) := by
@@ -273,6 +342,7 @@ lemma layerZPauli_isZType {n nX nZ : ℕ}
     (if (layerEdgeEquiv n nX nZ).symm q ∈ support then PauliOperator.Z else PauliOperator.I)
   split_ifs <;> simp [PauliOperator.IsZType]
 
+/-- An X-lift contains only X and identity factors. -/
 lemma layerXPauli_isXType {n nX nZ : ℕ}
     (support : Finset (LayerLatticeEdge n nX nZ)) :
     NQubitPauliGroupElement.IsXTypeElement (layerXPauli support) := by
@@ -297,6 +367,18 @@ def layerZEdge {n nX nZ : ℕ} (x : Fin (nZ + 1)) (y : Fin (n + 1)) (z : Fin nX)
     LayerLatticeEdge n nX nZ :=
   Sum.inr (Sum.inr (x, y, z))
 
+/-- The lower and upper endpoints of a `Fin` interval are distinct. -/
+private lemma fin_castSucc_ne_succ {m : ℕ} (i : Fin m) :
+    Fin.castSucc i ≠ i.succ := by
+  intro h
+  have hval := congrArg Fin.val h
+  simp at hval
+
+/-- Reverse orientation of `fin_castSucc_ne_succ`. -/
+private lemma fin_succ_ne_castSucc {m : ℕ} (i : Fin m) :
+    i.succ ≠ Fin.castSucc i :=
+  Ne.symm (fin_castSucc_ne_succ i)
+
 /-- The four boundary edges of a square in one physical-qubit xz layer. -/
 def xzSurfacePlaquetteEdges {n nX nZ : ℕ} (q : Fin n) (x : Fin nZ) (z : Fin nX) :
     Finset (LayerLatticeEdge n nX nZ) :=
@@ -305,11 +387,13 @@ def xzSurfacePlaquetteEdges {n nX nZ : ℕ} (q : Fin n) (x : Fin nZ) (z : Fin nX
     layerXEdge x q.castSucc z.succ,
     layerZEdge x.castSucc q.castSucc z}
 
+/-- The four boundary edges of an xz plaquette are distinct. -/
 lemma card_xzSurfacePlaquetteEdges {n nX nZ : ℕ}
     (q : Fin n) (x : Fin nZ) (z : Fin nX) :
     (xzSurfacePlaquetteEdges q x z).card = 4 := by
   classical
-  simp [xzSurfacePlaquetteEdges, layerXEdge, layerZEdge]
+  simp [xzSurfacePlaquetteEdges, layerXEdge, layerZEdge,
+    fin_castSucc_ne_succ, fin_succ_ne_castSucc]
 
 /-- The four boundary edges of a square in one X-check xy layer. -/
 def xySurfacePlaquetteEdges {n nX nZ : ℕ} (check : Fin nX) (x : Fin nZ) (q : Fin n) :
@@ -319,11 +403,13 @@ def xySurfacePlaquetteEdges {n nX nZ : ℕ} (check : Fin nX) (x : Fin nZ) (q : F
     layerXEdge x q.succ check.castSucc,
     layerYEdge x.castSucc q check.castSucc}
 
+/-- The four boundary edges of an xy plaquette are distinct. -/
 lemma card_xySurfacePlaquetteEdges {n nX nZ : ℕ}
     (check : Fin nX) (x : Fin nZ) (q : Fin n) :
     (xySurfacePlaquetteEdges check x q).card = 4 := by
   classical
-  simp [xySurfacePlaquetteEdges, layerXEdge, layerYEdge]
+  simp [xySurfacePlaquetteEdges, layerXEdge, layerYEdge,
+    fin_castSucc_ne_succ, fin_succ_ne_castSucc]
 
 /-- The four boundary edges of a square in one Z-check yz layer. -/
 def yzSurfacePlaquetteEdges {n nX nZ : ℕ} (check : Fin nZ) (q : Fin n) (z : Fin nX) :
@@ -333,11 +419,13 @@ def yzSurfacePlaquetteEdges {n nX nZ : ℕ} (check : Fin nZ) (q : Fin n) (z : Fi
     layerYEdge check.castSucc q z.succ,
     layerZEdge check.castSucc q.castSucc z}
 
+/-- The four boundary edges of a yz plaquette are distinct. -/
 lemma card_yzSurfacePlaquetteEdges {n nX nZ : ℕ}
     (check : Fin nZ) (q : Fin n) (z : Fin nX) :
     (yzSurfacePlaquetteEdges check q z).card = 4 := by
   classical
-  simp [yzSurfacePlaquetteEdges, layerYEdge, layerZEdge]
+  simp [yzSurfacePlaquetteEdges, layerYEdge, layerZEdge,
+    fin_castSucc_ne_succ, fin_succ_ne_castSucc]
 
 /-- Canonical Z-plaquette generator in a physical-qubit xz layer. -/
 noncomputable def xzSurfacePlaquette {n nX nZ : ℕ}
@@ -345,6 +433,7 @@ noncomputable def xzSurfacePlaquette {n nX nZ : ℕ}
     NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
   layerZPauli (xzSurfacePlaquetteEdges q x z)
 
+/-- An xz plaquette generator has Pauli weight four. -/
 lemma weight_xzSurfacePlaquette {n nX nZ : ℕ}
     (q : Fin n) (x : Fin nZ) (z : Fin nX) :
     NQubitPauliGroupElement.weight (xzSurfacePlaquette q x z) = 4 := by
@@ -356,6 +445,7 @@ noncomputable def xySurfacePlaquette {n nX nZ : ℕ}
     NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
   layerZPauli (xySurfacePlaquetteEdges check x q)
 
+/-- An xy plaquette generator has Pauli weight four. -/
 lemma weight_xySurfacePlaquette {n nX nZ : ℕ}
     (check : Fin nX) (x : Fin nZ) (q : Fin n) :
     NQubitPauliGroupElement.weight (xySurfacePlaquette check x q) = 4 := by
@@ -367,6 +457,7 @@ noncomputable def yzSurfacePlaquette {n nX nZ : ℕ}
     NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
   layerZPauli (yzSurfacePlaquetteEdges check q z)
 
+/-- A yz plaquette generator has Pauli weight four. -/
 lemma weight_yzSurfacePlaquette {n nX nZ : ℕ}
     (check : Fin nZ) (q : Fin n) (z : Fin nX) :
     NQubitPauliGroupElement.weight (yzSurfacePlaquette check q z) = 4 := by
@@ -396,8 +487,8 @@ noncomputable def yzSurfacePlaquetteCandidates {n nX nZ : ℕ} :
 /-- All unmodified surface-layer Z plaquette candidates, before defect replacements. -/
 noncomputable def layerSurfacePlaquetteCandidates {n nX nZ : ℕ} :
     List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :=
-  xzSurfacePlaquetteCandidates ++ xySurfacePlaquetteCandidates ++
-    yzSurfacePlaquetteCandidates
+  xzSurfacePlaquetteCandidates ++
+    (xySurfacePlaquetteCandidates ++ yzSurfacePlaquetteCandidates)
 
 /-- Every unmodified surface-layer plaquette candidate has weight four. -/
 theorem layerSurfacePlaquetteCandidates_weight {n nX nZ : ℕ}
@@ -410,8 +501,7 @@ theorem layerSurfacePlaquetteCandidates_weight {n nX nZ : ℕ}
   · simp only [xzSurfacePlaquetteCandidates, List.mem_map] at hxz
     rcases hxz with ⟨face, hface, rfl⟩
     exact weight_xzSurfacePlaquette _ _ _
-  · simp only [List.mem_append] at hrest
-    rcases hrest with hxy | hyz
+  · rcases hrest with hxy | hyz
     · simp only [xySurfacePlaquetteCandidates, List.mem_map] at hxy
       rcases hxy with ⟨face, hface, rfl⟩
       exact weight_xySurfacePlaquette _ _ _
@@ -419,6 +509,7 @@ theorem layerSurfacePlaquetteCandidates_weight {n nX nZ : ℕ}
       rcases hyz with ⟨face, hface, rfl⟩
       exact weight_yzSurfacePlaquette _ _ _
 
+/-- Every candidate in the unmodified plaquette list is Z-type. -/
 theorem layerSurfacePlaquetteCandidates_zType {n nX nZ : ℕ}
     (g : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
     (hg : g ∈ layerSurfacePlaquetteCandidates) :
@@ -429,8 +520,7 @@ theorem layerSurfacePlaquetteCandidates_zType {n nX nZ : ℕ}
   · simp only [xzSurfacePlaquetteCandidates, List.mem_map] at hxz
     rcases hxz with ⟨face, hface, rfl⟩
     exact layerZPauli_isZType _
-  · simp only [List.mem_append] at hrest
-    rcases hrest with hxy | hyz
+  · rcases hrest with hxy | hyz
     · simp only [xySurfacePlaquetteCandidates, List.mem_map] at hxy
       rcases hxy with ⟨face, hface, rfl⟩
       exact layerZPauli_isZType _
@@ -438,50 +528,85 @@ theorem layerSurfacePlaquetteCandidates_zType {n nX nZ : ℕ}
       rcases hyz with ⟨face, hface, rfl⟩
       exact layerZPauli_isZType _
 
-/-- The four in-plane edges incident to an interior vertex of an xz layer. -/
-def xzSurfaceStarEdges {n nX nZ : ℕ}
-    (q : Fin n) (x : Fin (nZ - 1)) (z : Fin (nX - 1)) :
-    Finset (LayerLatticeEdge n nX nZ) :=
-  {layerXEdge x.castSucc q.castSucc z.succ,
-    layerXEdge x.succ q.castSucc z.succ,
-    layerZEdge x.succ q.castSucc z.castSucc,
-    layerZEdge x.succ q.castSucc z.succ}
+/-- Lower interior grid coordinate embedded in `Fin m`. -/
+private def interiorCast {m : ℕ} (i : Fin (m - 1)) : Fin m := by
+  have hi : i.val < m - 1 := i.isLt
+  have hm : 0 < m := by omega
+  exact Fin.cast (by omega) i.castSucc
 
+/-- Upper interior grid coordinate embedded in `Fin m`. -/
+private def interiorSucc {m : ℕ} (i : Fin (m - 1)) : Fin m :=
+  ⟨i.val + 1, by omega⟩
+
+/-- Convert an upper interior grid coordinate to its vertex coordinate. -/
+private def interiorSuccVertex {m : ℕ} (i : Fin (m - 1)) : Fin (m + 1) :=
+  Fin.castSucc (interiorSucc i)
+
+/-- The lower and upper coordinates around an interior vertex are distinct. -/
+private lemma interiorCast_ne_succ {m : ℕ} (i : Fin (m - 1)) :
+    interiorCast i ≠ interiorSucc i := by
+  intro h
+  have hval := congrArg Fin.val h
+  simp [interiorCast, interiorSucc] at hval
+
+/-- Reverse orientation of `interiorCast_ne_succ`. -/
+private lemma interiorSucc_ne_cast {m : ℕ} (i : Fin (m - 1)) :
+    interiorSucc i ≠ interiorCast i :=
+  Ne.symm (interiorCast_ne_succ i)
+
+/-- The four in-plane edges incident to an interior vertex of an xz layer. -/
+noncomputable def xzSurfaceStarEdges {n nX nZ : ℕ}
+    (q : Fin n) (x : Fin (nZ - 1)) (z : Fin (nX - 1)) :
+    Finset (LayerLatticeEdge n nX nZ) := by
+  classical
+  exact {layerXEdge (interiorCast (m := nZ) x) q.castSucc (interiorSuccVertex (m := nX) z),
+    layerXEdge (interiorSucc (m := nZ) x) q.castSucc (interiorSuccVertex (m := nX) z),
+    layerZEdge (interiorSuccVertex (m := nZ) x) q.castSucc (interiorCast (m := nX) z),
+    layerZEdge (interiorSuccVertex (m := nZ) x) q.castSucc (interiorSucc (m := nX) z)}
+
+/-- The four edges incident to an interior xz vertex are distinct. -/
 lemma card_xzSurfaceStarEdges {n nX nZ : ℕ}
     (q : Fin n) (x : Fin (nZ - 1)) (z : Fin (nX - 1)) :
     (xzSurfaceStarEdges q x z).card = 4 := by
   classical
-  simp [xzSurfaceStarEdges, layerXEdge, layerZEdge]
+  simp [xzSurfaceStarEdges, layerXEdge, layerZEdge,
+    interiorCast_ne_succ, interiorSucc_ne_cast]
 
 /-- The four in-plane edges incident to an interior vertex of an xy layer. -/
-def xySurfaceStarEdges {n nX nZ : ℕ}
+noncomputable def xySurfaceStarEdges {n nX nZ : ℕ}
     (check : Fin nX) (x : Fin (nZ - 1)) (q : Fin (n - 1)) :
-    Finset (LayerLatticeEdge n nX nZ) :=
-  {layerXEdge x.castSucc q.succ check.castSucc,
-    layerXEdge x.succ q.succ check.castSucc,
-    layerYEdge x.succ q.castSucc check.castSucc,
-    layerYEdge x.succ q.succ check.castSucc}
+    Finset (LayerLatticeEdge n nX nZ) := by
+  classical
+  exact {layerXEdge (interiorCast (m := nZ) x) (interiorSuccVertex (m := n) q) check.castSucc,
+    layerXEdge (interiorSucc (m := nZ) x) (interiorSuccVertex (m := n) q) check.castSucc,
+    layerYEdge (interiorSuccVertex (m := nZ) x) (interiorCast (m := n) q) check.castSucc,
+    layerYEdge (interiorSuccVertex (m := nZ) x) (interiorSucc (m := n) q) check.castSucc}
 
+/-- The four edges incident to an interior xy vertex are distinct. -/
 lemma card_xySurfaceStarEdges {n nX nZ : ℕ}
     (check : Fin nX) (x : Fin (nZ - 1)) (q : Fin (n - 1)) :
     (xySurfaceStarEdges check x q).card = 4 := by
   classical
-  simp [xySurfaceStarEdges, layerXEdge, layerYEdge]
+  simp [xySurfaceStarEdges, layerXEdge, layerYEdge,
+    interiorCast_ne_succ, interiorSucc_ne_cast]
 
 /-- The four in-plane edges incident to an interior vertex of a yz layer. -/
-def yzSurfaceStarEdges {n nX nZ : ℕ}
+noncomputable def yzSurfaceStarEdges {n nX nZ : ℕ}
     (check : Fin nZ) (q : Fin (n - 1)) (z : Fin (nX - 1)) :
-    Finset (LayerLatticeEdge n nX nZ) :=
-  {layerYEdge check.castSucc q.castSucc z.succ,
-    layerYEdge check.castSucc q.succ z.succ,
-    layerZEdge check.castSucc q.succ z.castSucc,
-    layerZEdge check.castSucc q.succ z.succ}
+    Finset (LayerLatticeEdge n nX nZ) := by
+  classical
+  exact {layerYEdge check.castSucc (interiorCast (m := n) q) (interiorSuccVertex (m := nX) z),
+    layerYEdge check.castSucc (interiorSucc (m := n) q) (interiorSuccVertex (m := nX) z),
+    layerZEdge check.castSucc (interiorSuccVertex (m := n) q) (interiorCast (m := nX) z),
+    layerZEdge check.castSucc (interiorSuccVertex (m := n) q) (interiorSucc (m := nX) z)}
 
+/-- The four edges incident to an interior yz vertex are distinct. -/
 lemma card_yzSurfaceStarEdges {n nX nZ : ℕ}
     (check : Fin nZ) (q : Fin (n - 1)) (z : Fin (nX - 1)) :
     (yzSurfaceStarEdges check q z).card = 4 := by
   classical
-  simp [yzSurfaceStarEdges, layerYEdge, layerZEdge]
+  simp [yzSurfaceStarEdges, layerYEdge, layerZEdge,
+    interiorCast_ne_succ, interiorSucc_ne_cast]
 
 /-- Canonical X-star generator at an interior vertex of an xz layer. -/
 noncomputable def xzSurfaceStar {n nX nZ : ℕ}
@@ -489,6 +614,7 @@ noncomputable def xzSurfaceStar {n nX nZ : ℕ}
     NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
   layerXPauli (xzSurfaceStarEdges q x z)
 
+/-- An interior xz star generator has Pauli weight four. -/
 lemma weight_xzSurfaceStar {n nX nZ : ℕ}
     (q : Fin n) (x : Fin (nZ - 1)) (z : Fin (nX - 1)) :
     NQubitPauliGroupElement.weight (xzSurfaceStar q x z) = 4 := by
@@ -500,6 +626,7 @@ noncomputable def xySurfaceStar {n nX nZ : ℕ}
     NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
   layerXPauli (xySurfaceStarEdges check x q)
 
+/-- An interior xy star generator has Pauli weight four. -/
 lemma weight_xySurfaceStar {n nX nZ : ℕ}
     (check : Fin nX) (x : Fin (nZ - 1)) (q : Fin (n - 1)) :
     NQubitPauliGroupElement.weight (xySurfaceStar check x q) = 4 := by
@@ -511,6 +638,7 @@ noncomputable def yzSurfaceStar {n nX nZ : ℕ}
     NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
   layerXPauli (yzSurfaceStarEdges check q z)
 
+/-- An interior yz star generator has Pauli weight four. -/
 lemma weight_yzSurfaceStar {n nX nZ : ℕ}
     (check : Fin nZ) (q : Fin (n - 1)) (z : Fin (nX - 1)) :
     NQubitPauliGroupElement.weight (yzSurfaceStar check q z) = 4 := by
@@ -526,7 +654,7 @@ noncomputable def layerInteriorStarCandidates {n nX nZ : ℕ} :
     (fun p => xySurfaceStar p.1 p.2.1 p.2.2)
   let yz := ((Finset.univ : Finset (Fin nZ × Fin (n - 1) × Fin (nX - 1))).toList).map
     (fun p => yzSurfaceStar p.1 p.2.1 p.2.2)
-  exact xz ++ xy ++ yz
+  exact xz ++ (xy ++ yz)
 
 /-- Every interior surface-layer X-star candidate has weight four. -/
 theorem layerInteriorStarCandidates_weight {n nX nZ : ℕ}
@@ -539,8 +667,7 @@ theorem layerInteriorStarCandidates_weight {n nX nZ : ℕ}
   · simp only [List.mem_map] at hxz
     rcases hxz with ⟨p, hp, rfl⟩
     exact weight_xzSurfaceStar _ _ _
-  · simp only [List.mem_append] at hrest
-    rcases hrest with hxy | hyz
+  · rcases hrest with hxy | hyz
     · simp only [List.mem_map] at hxy
       rcases hxy with ⟨p, hp, rfl⟩
       exact weight_xySurfaceStar _ _ _
@@ -548,6 +675,7 @@ theorem layerInteriorStarCandidates_weight {n nX nZ : ℕ}
       rcases hyz with ⟨p, hp, rfl⟩
       exact weight_yzSurfaceStar _ _ _
 
+/-- Every candidate in the interior-star list is X-type. -/
 theorem layerInteriorStarCandidates_xType {n nX nZ : ℕ}
     (g : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
     (hg : g ∈ layerInteriorStarCandidates) :
@@ -558,8 +686,7 @@ theorem layerInteriorStarCandidates_xType {n nX nZ : ℕ}
   · simp only [List.mem_map] at hxz
     rcases hxz with ⟨p, hp, rfl⟩
     exact layerXPauli_isXType _
-  · simp only [List.mem_append] at hrest
-    rcases hrest with hxy | hyz
+  · rcases hrest with hxy | hyz
     · simp only [List.mem_map] at hxy
       rcases hxy with ⟨p, hp, rfl⟩
       exact layerXPauli_isXType _
@@ -584,7 +711,7 @@ theorem layerSurfaceCheckCandidates_weight_le_four {n nX nZ : ℕ}
 
 /-- Stabilizer subgroup generated by the unmodified bulk Z plaquettes. -/
 noncomputable def layerBulkZStabilizerGroup {n nX nZ : ℕ} :
-    StabilizerGroup.StabilizerGroup (LayerOutputSize n nX nZ) :=
+    StabilizerGroup (LayerOutputSize n nX nZ) :=
   StabilizerGroup.mkStabilizerFromGenerators (LayerOutputSize n nX nZ)
     layerSurfacePlaquetteCandidates
     (by
@@ -594,7 +721,9 @@ noncomputable def layerBulkZStabilizerGroup {n nX nZ : ℕ} :
         (layerSurfacePlaquetteCandidates_zType h hh))
     (by
       have hNoNeg := CSS.negIdentity_not_mem_closure_union
-        (NQubitPauliGroupElement.listToSet layerSurfacePlaquetteCandidates) ∅
+        (NQubitPauliGroupElement.listToSet
+          (n := LayerOutputSize n nX nZ) layerSurfacePlaquetteCandidates)
+        (∅ : Set (NQubitPauliGroupElement (LayerOutputSize n nX nZ)))
         (by
           intro z hz
           exact layerSurfacePlaquetteCandidates_zType z hz)
@@ -608,7 +737,7 @@ noncomputable def layerBulkZStabilizerGroup {n nX nZ : ℕ} :
 
 /-- Stabilizer subgroup generated by the unmodified bulk X stars. -/
 noncomputable def layerBulkXStabilizerGroup {n nX nZ : ℕ} :
-    StabilizerGroup.StabilizerGroup (LayerOutputSize n nX nZ) :=
+    StabilizerGroup (LayerOutputSize n nX nZ) :=
   StabilizerGroup.mkStabilizerFromGenerators (LayerOutputSize n nX nZ)
     layerInteriorStarCandidates
     (by
@@ -618,7 +747,9 @@ noncomputable def layerBulkXStabilizerGroup {n nX nZ : ℕ} :
         (layerInteriorStarCandidates_xType h hh))
     (by
       have hNoNeg := CSS.negIdentity_not_mem_closure_union
-        ∅ (NQubitPauliGroupElement.listToSet layerInteriorStarCandidates)
+        (∅ : Set (NQubitPauliGroupElement (LayerOutputSize n nX nZ)))
+        (NQubitPauliGroupElement.listToSet
+          (n := LayerOutputSize n nX nZ) layerInteriorStarCandidates)
         (by
           intro z hz
           simp at hz)
@@ -642,11 +773,13 @@ abbrev ZJunction {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ) : Type :=
 abbrev Junction {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ) : Type :=
   XJunction input ⊕ ZJunction input
 
+/-- Recover the X-check incidence carried by an X-junction index. -/
 lemma xJunction_incident {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (junction : XJunction input) :
     input.xCheck junction.1.1 junction.1.2 = 1 :=
   junction.2
 
+/-- Recover the Z-check incidence carried by a Z-junction index. -/
 lemma zJunction_incident {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (junction : ZJunction input) :
     input.zCheck junction.1.1 junction.1.2 = 1 :=
@@ -666,7 +799,7 @@ lemma css_check_overlap_even {n : ℕ} (xCheck zCheck : Fin n → ZMod 2)
   have hprod : ∀ x z : ZMod 2,
       x * z = if x = 1 ∧ z = 1 then 1 else 0 := by
     intro x z
-    fin_cases x <;> fin_cases z <;> norm_num
+    fin_cases x <;> fin_cases z <;> decide
   have hsum :
       (∑ q : Fin n, xCheck q * zCheck q) =
         ((Finset.univ.filter (fun q => xCheck q = 1 ∧ zCheck q = 1)).card : ZMod 2) := by
@@ -674,7 +807,6 @@ lemma css_check_overlap_even {n : ℕ} (xCheck zCheck : Fin n → ZMod 2)
       arg 2; ext q
       rw [hprod (xCheck q) (zCheck q)]
     rw [Finset.sum_boole]
-    rfl
   rw [hsum, ZMod.natCast_eq_zero_iff_even] at hcomm
   exact hcomm
 
@@ -701,7 +833,7 @@ private noncomputable def orderedPairing {α : Type*} [LinearOrder α]
     obtain ⟨m, hm⟩ := heven
     omega
   exact (adjacentPairingFin (s.card / 2)).trans
-    ((Fin.cast hcard).trans (s.orderIsoOfFin rfl).toEquiv)
+    ((Equiv.cast (congrArg Fin hcard)).trans (s.orderIsoOfFin rfl).toEquiv)
 
 /-- Pair the shared qubits of an X/Z check pair in the canonical `Fin n` order. -/
 def CSSLayerInput.xzCheckOverlap {n k nX nZ : ℕ}
@@ -714,7 +846,7 @@ noncomputable def CSSLayerInput.xzJunctionPairing {n k nX nZ : ℕ}
     (Fin ((input.xzCheckOverlap x z).card / 2) × Fin 2) ≃
       {q : Fin n // q ∈ input.xzCheckOverlap x z} :=
   orderedPairing _ (css_check_overlap_even (input.xCheck x) (input.zCheck z)
-    (input.css_commutes x z))
+      (css_commutes input x z))
 
 /-- One endpoint in the canonical matching of an X/Z overlap. -/
 noncomputable def CSSLayerInput.xzPairEndpoint {n k nX nZ : ℕ}
@@ -729,7 +861,9 @@ lemma CSSLayerInput.xzPairEndpoint_incident {n k nX nZ : ℕ}
     input.xCheck x (input.xzPairEndpoint x z pair endpoint) = 1 ∧
       input.zCheck z (input.xzPairEndpoint x z pair endpoint) = 1 := by
   have hmem := (input.xzJunctionPairing x z (pair, endpoint)).property
-  simpa [xzPairEndpoint, xzCheckOverlap, Finset.mem_filter] using hmem
+  change input.xzPairEndpoint x z pair endpoint ∈
+    Finset.univ.filter (fun q => input.xCheck x q = 1 ∧ input.zCheck z q = 1) at hmem
+  exact (Finset.mem_filter.mp hmem).2
 
 /-- The endpoints in each junction pair are distinct. -/
 lemma CSSLayerInput.xzPairEndpoint_ne {n k nX nZ : ℕ}
@@ -762,16 +896,24 @@ lemma CSSLayerInput.xzPairYEdges_nonempty {n k nX nZ : ℕ}
   let first := input.xzPairEndpoint x z pair 0
   let second := input.xzPairEndpoint x z pair 1
   have hne : first ≠ second := input.xzPairEndpoint_ne x z pair
+  have hval_ne : first.val ≠ second.val := by
+    intro hval
+    exact hne (Fin.ext hval)
   have hlt : min first.val second.val < max first.val second.val := by
     by_cases h : first.val ≤ second.val
-    · simp [min_eq_left h, max_eq_right h]
-    · have h' : second.val ≤ first.val := Nat.le_of_lt (Nat.lt_of_not_ge h)
-      simp [min_eq_right h', max_eq_left h']
-  have hmax : max first.val second.val < n := Nat.max_lt_iff.mpr ⟨first.isLt, second.isLt⟩
+    · rw [min_eq_left h, max_eq_right h]
+      exact lt_of_le_of_ne h hval_ne
+    · have h' : second.val ≤ first.val := Nat.le_of_not_ge h
+      rw [min_eq_right h', max_eq_left h']
+      exact lt_of_le_of_ne h' (Ne.symm hval_ne)
+  have hmax : max first.val second.val < n := max_lt first.isLt second.isLt
   have hbound : min first.val second.val < n := lt_trans hlt hmax
   let edge : Fin n := ⟨min first.val second.val, hbound⟩
   refine ⟨edge, Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩⟩
-  simp [edge, hlt.le]
+  change min first.val second.val ≤ edge.val ∧ edge.val < max first.val second.val
+  constructor
+  · simp [edge]
+  · simpa [edge] using hlt
 
 /-- The y-directed defect segment for a matched X/Z overlap pair. -/
 noncomputable def CSSLayerInput.xzPairYJunctionEdges {n k nX nZ : ℕ}
@@ -781,6 +923,206 @@ noncomputable def CSSLayerInput.xzPairYJunctionEdges {n k nX nZ : ℕ}
   classical
   exact (input.xzPairYEdges x z pair).image
     (fun edge => Sum.inr (Sum.inl (z.castSucc, edge, x.castSucc)))
+
+/-- The complete y-directed crossing of one X-check and one Z-check layer. -/
+def CSSLayerInput.xzYCrossingEdges {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (x : Fin nX) (z : Fin nZ) :
+    Finset (LayerLatticeEdge n nX nZ) :=
+  Finset.univ.image (fun y : Fin n => layerYEdge z.castSucc y x.castSucc)
+
+/-- Union of nontrivial y-junction segments selected by the ordered overlap matching. -/
+noncomputable def CSSLayerInput.xzNontrivialYJunctionEdges {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (x : Fin nX) (z : Fin nZ) :
+    Finset (LayerLatticeEdge n nX nZ) := by
+  classical
+  exact Finset.univ.biUnion fun pair : Fin ((input.xzCheckOverlap x z).card / 2) =>
+    input.xzPairYJunctionEdges x z pair
+
+/-- The remaining edges at the y crossing form trivial junction segments. -/
+noncomputable def CSSLayerInput.xzTrivialYJunctionEdges {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (x : Fin nX) (z : Fin nZ) :
+    Finset (LayerLatticeEdge n nX nZ) :=
+  input.xzYCrossingEdges x z \ input.xzNontrivialYJunctionEdges x z
+
+/-- Each matched segment lies inside the complete y-directed crossing. -/
+lemma CSSLayerInput.xzPairYJunctionEdges_subset_crossing {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (x : Fin nX) (z : Fin nZ)
+    (pair : Fin ((input.xzCheckOverlap x z).card / 2)) :
+    input.xzPairYJunctionEdges x z pair ⊆ input.xzYCrossingEdges x z := by
+  classical
+  change
+    Finset.image (fun edge => Sum.inr (Sum.inl (z.castSucc, edge, x.castSucc)))
+        (input.xzPairYEdges x z pair) ⊆
+      Finset.image (fun y => Sum.inr (Sum.inl (z.castSucc, y, x.castSucc))) Finset.univ
+  apply Finset.image_subset_iff.mpr
+  intro edge hedge
+  exact Finset.mem_image.mpr ⟨edge, Finset.mem_univ _, rfl⟩
+
+/-- The union of matched segments lies inside the complete crossing. -/
+lemma CSSLayerInput.xzNontrivialYJunctionEdges_subset_crossing {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (x : Fin nX) (z : Fin nZ) :
+    input.xzNontrivialYJunctionEdges x z ⊆ input.xzYCrossingEdges x z := by
+  classical
+  intro edge hedge
+  simp only [xzNontrivialYJunctionEdges, Finset.mem_biUnion,
+    Finset.mem_univ, true_and] at hedge
+  rcases hedge with ⟨pair, hpair⟩
+  exact input.xzPairYJunctionEdges_subset_crossing x z pair hpair
+
+/-- The trivial crossing remainder is a subset of the complete crossing. -/
+lemma CSSLayerInput.xzTrivialYJunctionEdges_subset_crossing {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (x : Fin nX) (z : Fin nZ) :
+    input.xzTrivialYJunctionEdges x z ⊆ input.xzYCrossingEdges x z :=
+  Finset.sdiff_subset
+
+/-- The X-oriented defect line where an X-check layer meets an incident data layer. -/
+def CSSLayerInput.xJunctionEdges {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : XJunction input) :
+    Finset (LayerLatticeEdge n nX nZ) :=
+  Finset.univ.image (fun xCoord : Fin nZ =>
+    layerXEdge xCoord junction.1.2.castSucc junction.1.1.castSucc)
+
+/-- The Z-oriented defect line where a Z-check layer meets an incident data layer. -/
+def CSSLayerInput.zJunctionEdges {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input) :
+    Finset (LayerLatticeEdge n nX nZ) :=
+  Finset.univ.image (fun zCoord : Fin nX =>
+    layerZEdge junction.1.1.castSucc junction.1.2.castSucc zCoord)
+
+/-- Position of an incident data layer along one ordered check layer. -/
+inductive CheckLayerJunctionPosition
+  | single
+  | first
+  | middle
+  | last
+  deriving DecidableEq, Repr
+
+/-- Classify an element of a finite ordered support as first, middle, or last. -/
+noncomputable def Finset.orderedSupportPosition {α : Type*} [LinearOrder α]
+    (support : Finset α) (q : {q // q ∈ support}) : CheckLayerJunctionPosition := by
+  have hcard_pos : 0 < support.card := Finset.card_pos.mpr ⟨q.val, q.property⟩
+  let order := support.orderIsoOfFin rfl
+  let rank := order.symm q
+  exact if hsingle : support.card = 1 then .single
+    else if hfirst : rank.val = 0 then .first
+    else if hlast : rank.val + 1 = support.card then .last
+    else .middle
+
+/-- Position of an X-check/data-layer junction in the X-check's ordered support. -/
+noncomputable def CSSLayerInput.xJunctionPosition {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : XJunction input) :
+    CheckLayerJunctionPosition := by
+  let support := Finset.univ.filter (fun q : Fin n => input.xCheck junction.1.1 q = 1)
+  have hmem : junction.1.2 ∈ support := Finset.mem_filter.mpr ⟨Finset.mem_univ _, junction.2⟩
+  exact Finset.orderedSupportPosition support ⟨junction.1.2, hmem⟩
+
+/-- Position of a Z-check/data-layer junction in the Z-check's ordered support. -/
+noncomputable def CSSLayerInput.zJunctionPosition {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input) :
+    CheckLayerJunctionPosition := by
+  let support := Finset.univ.filter (fun q : Fin n => input.zCheck junction.1.1 q = 1)
+  have hmem : junction.1.2 ∈ support := Finset.mem_filter.mpr ⟨Finset.mem_univ _, junction.2⟩
+  exact Finset.orderedSupportPosition support ⟨junction.1.2, hmem⟩
+
+/-- A Y-junction is one matched pair on the intersection of an X and Z check layer. -/
+abbrev YJunctionPairIndex {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ) :=
+  Σ x : Fin nX, Σ z : Fin nZ, Fin ((input.xzCheckOverlap x z).card / 2)
+
+/-- Every Tanner-incidence and matched-overlap line defect in the cuboid. -/
+abbrev LayerLineDefectIndex {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ) :=
+  XJunction input ⊕ (ZJunction input ⊕ YJunctionPairIndex input)
+
+/-- Edge support of one of the three line-defect orientations. -/
+noncomputable def CSSLayerInput.layerLineDefectEdges {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    LayerLineDefectIndex input → Finset (LayerLatticeEdge n nX nZ)
+  | Sum.inl junction => input.xJunctionEdges junction
+  | Sum.inr (Sum.inl junction) => input.zJunctionEdges junction
+  | Sum.inr (Sum.inr ⟨x, z, pair⟩) => input.xzPairYJunctionEdges x z pair
+
+/-- Vertices of the finite cuboid lattice. -/
+abbrev LayerLatticeVertex (n nX nZ : ℕ) : Type :=
+  Fin (nZ + 1) × Fin (n + 1) × Fin (nX + 1)
+
+/-- The two endpoint vertices of an oriented cuboid edge. -/
+def layerEdgeEndpoints {n nX nZ : ℕ} :
+    LayerLatticeEdge n nX nZ → LayerLatticeVertex n nX nZ × LayerLatticeVertex n nX nZ
+  | Sum.inl (x, y, z) => ((x.castSucc, y, z), (x.succ, y, z))
+  | Sum.inr (Sum.inl (x, y, z)) => ((x, y.castSucc, z), (x, y.succ, z))
+  | Sum.inr (Sum.inr (x, y, z)) => ((x, y, z.castSucc), (x, y, z.succ))
+
+/-- Vertices touched by the edge support of one line defect. -/
+noncomputable def CSSLayerInput.layerLineDefectVertices {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (line : LayerLineDefectIndex input) :
+    Finset (LayerLatticeVertex n nX nZ) := by
+  classical
+  exact (input.layerLineDefectEdges line).biUnion fun edge =>
+    { (layerEdgeEndpoints edge).1, (layerEdgeEndpoints edge).2 }
+
+/-- A point defect is a vertex where two distinct line defects meet. -/
+structure LayerPointDefect {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) where
+  firstLine : LayerLineDefectIndex input
+  secondLine : LayerLineDefectIndex input
+  lines_distinct : firstLine ≠ secondLine
+  vertex : LayerLatticeVertex n nX nZ
+  vertex_on_first : vertex ∈ input.layerLineDefectVertices firstLine
+  vertex_on_second : vertex ∈ input.layerLineDefectVertices secondLine
+
+/-- A cuboid vertex is on the physical boundary iff one coordinate is an endpoint. -/
+def LayerLatticeVertex.onBoundary {n nX nZ : ℕ}
+    (vertex : LayerLatticeVertex n nX nZ) : Prop :=
+  vertex.1.val = 0 ∨ vertex.1.val = nZ ∨
+    vertex.2.1.val = 0 ∨ vertex.2.1.val = n ∨
+      vertex.2.2.val = 0 ∨ vertex.2.2.val = nX
+
+/-- Whether a point defect lies on the cuboid boundary. -/
+def LayerPointDefect.onBoundary {n k nX nZ : ℕ}
+    {input : CSSLayerInput n k nX nZ} (point : LayerPointDefect input) : Prop :=
+  point.vertex.onBoundary
+
+/-- All lattice vertices where two distinct generated line defects meet. -/
+noncomputable def CSSLayerInput.layerPointDefectVertices {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) : Finset (LayerLatticeVertex n nX nZ) := by
+  classical
+  exact Finset.univ.filter fun vertex =>
+    ∃ first second : LayerLineDefectIndex input,
+      first ≠ second ∧
+        vertex ∈ input.layerLineDefectVertices first ∧
+          vertex ∈ input.layerLineDefectVertices second
+
+/-- Point-defect vertices on the physical boundary of the cuboid. -/
+noncomputable def CSSLayerInput.layerBoundaryPointDefectVertices {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) : Finset (LayerLatticeVertex n nX nZ) := by
+  classical
+  exact (input.layerPointDefectVertices).filter LayerLatticeVertex.onBoundary
+
+/-- Point-defect vertices strictly inside the cuboid. -/
+noncomputable def CSSLayerInput.layerBulkPointDefectVertices {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) : Finset (LayerLatticeVertex n nX nZ) := by
+  classical
+  exact (input.layerPointDefectVertices).filter fun vertex => ¬ vertex.onBoundary
+
+/-- Every geometric point defect is either a bulk or a boundary point defect. -/
+lemma layerPointDefectVertices_eq_bulk_union_boundary {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    input.layerPointDefectVertices =
+      input.layerBulkPointDefectVertices ∪ input.layerBoundaryPointDefectVertices := by
+  classical
+  ext vertex
+  simp only [CSSLayerInput.layerBulkPointDefectVertices,
+    CSSLayerInput.layerBoundaryPointDefectVertices, Finset.mem_filter,
+    Finset.mem_union]
+  by_cases hboundary : vertex.onBoundary <;> simp [hboundary]
+
+/-- Bulk and boundary point-defect vertex sets are disjoint. -/
+lemma layerBulkPointDefectVertices_disjoint_boundary {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    Disjoint input.layerBulkPointDefectVertices input.layerBoundaryPointDefectVertices := by
+  classical
+  rw [Finset.disjoint_left]
+  intro vertex hbulk hboundary
+  exact (Finset.mem_filter.mp hbulk).2 (Finset.mem_filter.mp hboundary).2
 
 /-- An output Layer code certificate using QECLean's actual stabilizer-code
 representation.

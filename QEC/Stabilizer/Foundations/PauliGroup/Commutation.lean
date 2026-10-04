@@ -39,6 +39,24 @@ private lemma mulOp_phasePower (p q : NQubitPauliOperator n) :
   (mulOp p q).phasePower =
     (Finset.univ : Finset (Fin n)).sum (fun i => ((p i).mulOp (q i)).phasePower) := rfl
 
+/-- An even number of `2` summands is zero in `Fin 4`. -/
+private lemma fin4_nsmul_two_even (k : ℕ) :
+    nsmulRec (2 * k) (2 : Fin 4) = 0 := by
+  induction k with
+  | zero => rfl
+  | succ k ih =>
+      simp only [Nat.mul_succ]
+      simp [nsmulRec, ih]
+
+/-- An odd number of `2` summands equals `2` in `Fin 4`. -/
+private lemma fin4_nsmul_two_odd (k : ℕ) :
+    nsmulRec (1 + 2 * k) (2 : Fin 4) = 2 := by
+  have h_index : 1 + 2 * k = 2 * k + 1 := by omega
+  rw [h_index]
+  change nsmulRec (2 * k) (2 : Fin 4) + 2 = 2
+  rw [fin4_nsmul_two_even k]
+  rfl
+
 /-- If two functions are equal pointwise, their sums over Finset.univ are equal.
 -/
 private lemma sum_eq_of_pointwise_eq {α : Type*} [AddCommMonoid α] {f g : Fin n → α}
@@ -163,7 +181,7 @@ lemma commutes_iff_even_anticommutes (p q : NQubitPauliGroupElement n) :
     ((p.operators i).mulOp (q.operators i)).phasePower) =
     (Finset.univ : Finset (Fin n)).sum (fun i =>
     ((q.operators i).mulOp (p.operators i)).phasePower) := by
-      convert h_phase_diff using 1;
+      simpa only [mulOp_phasePower] using h_phase_diff
     have h_per_i : ∀ i : Fin n,
         ((p.operators i).mulOp (q.operators i)).phasePower -
             ((q.operators i).mulOp (p.operators i)).phasePower =
@@ -226,9 +244,9 @@ lemma commutes_iff_even_anticommutes (p q : NQubitPauliGroupElement n) :
         ext; simp [Quantum.NQubitPauliGroupElement.anticommutesAt];
       · norm_num [ Fin.ext_iff, Fin.val_add, Fin.val_mul ];
         erw [ Fin.val_mk ];
-        induction Exists.choose (even_iff_two_dvd.mp h_even) with
-        | zero => simp_all [nsmulRec];
-        | succ k ih => simp_all [nsmulRec];  omega
+        simpa using
+          (congrArg Fin.val
+            (fin4_nsmul_two_even (Exists.choose (even_iff_two_dvd.mp h_even)))).symm
     exact (commutes_iff_mulOp_phasePower p q).mpr h_cancel
 
 /-!
@@ -347,11 +365,9 @@ lemma anticommutes_iff_odd_anticommutes (p q : NQubitPauliGroupElement n) :
       simp_all ;
       erw [ Fin.ext_iff ] at * ; simp_all  [ Fin.val_add ];
       erw [ Fin.val_mk ] at * ; simp_all ;
-      erw [ show ( nsmulRec ( 2 * k ) 2 : Fin 4 ) = 0 from
-      by exact Nat.recOn k ( by rfl ) fun n ihn => by simp_all
-      [ nsmulRec ] ] at * ;
+      rw [fin4_nsmul_two_even k] at * ;
       simp_all
-    convert h_odd using 4
+    convert h_odd using 4 <;> simp [anticommutesAt]
   · intro h_odd
     have h_total_phase_diff : (mulOp p.operators q.operators).phasePower =
       (mulOp q.operators p.operators).phasePower +
@@ -376,8 +392,7 @@ lemma anticommutes_iff_odd_anticommutes (p q : NQubitPauliGroupElement n) :
     2 then 1 else 0 ) 2 ] ; simp_all ;
     simp_all  [ Fin.ext_iff, Quantum.NQubitPauliGroupElement.anticommutesAt ];
     erw [ Fin.val_mk ];
-    induction ( Finset.card _ / 2 ) <;> simp_all  [ nsmulRec ];
-    simp_all  [ Fin.val_add]
+    simp_all [Fin.val_add, fin4_nsmul_two_even, fin4_nsmul_two_odd]
 
 /-- Symmetry of anticommutation: if P anticommutes with Q, then Q anticommutes
 with P. -/

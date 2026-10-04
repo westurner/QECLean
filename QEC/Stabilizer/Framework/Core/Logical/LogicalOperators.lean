@@ -393,7 +393,9 @@ theorem trans (S : StabilizerGroup n) {L L' L'' : NQubitPauliGroupElement n}
   rw [this]
   exact S.mul_mem h₁ h₂
 
-instance (S : StabilizerGroup n) : Equivalence (fun L L' => SameLogicalOperator L L' S) where
+/-- The same-logical-operator relation is an equivalence relation. -/
+theorem equivalence (S : StabilizerGroup n) :
+  Equivalence (fun L L' => SameLogicalOperator L L' S) where
   refl L := refl L S
   symm := symm S
   trans := trans S

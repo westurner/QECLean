@@ -364,12 +364,12 @@ part; the phase does not affect them.
 
 /-- The support of an n-qubit Pauli group element: qubits where the operator is
 not I. -/
-def support (p : NQubitPauliGroupElement n) : Finset (Fin n) :=
+noncomputable def support (p : NQubitPauliGroupElement n) : Finset (Fin n) :=
   NQubitPauliOperator.support p.operators
 
 /-- The Pauli weight: number of qubits on which the element acts nontrivially
 (not I). -/
-def weight (p : NQubitPauliGroupElement n) : ℕ :=
+noncomputable def weight (p : NQubitPauliGroupElement n) : ℕ :=
   NQubitPauliOperator.weight p.operators
 
 /-- Support is determined by the operator part only. -/

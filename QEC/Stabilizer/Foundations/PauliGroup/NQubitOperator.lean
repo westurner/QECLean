@@ -167,11 +167,12 @@ acts nontrivially (i.e., not as I). The **weight** is the size of the support.
 
 /-- The support of an n-qubit Pauli operator: qubits where the operator is not
 I. -/
-def support (op : NQubitPauliOperator n) : Finset (Fin n) :=
-  Finset.univ.filter (fun i => op i ≠ PauliOperator.I)
+noncomputable def support (op : NQubitPauliOperator n) : Finset (Fin n) := by
+  classical
+  exact Finset.univ.filter (fun i => op i ≠ PauliOperator.I)
 
 /-- The Pauli weight: number of qubits on which the operator is not I. -/
-def weight (op : NQubitPauliOperator n) : ℕ :=
+noncomputable def weight (op : NQubitPauliOperator n) : ℕ :=
   (support op).card
 
 /-- A qubit is in the support iff the operator at that qubit is not I. -/

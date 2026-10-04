@@ -133,7 +133,8 @@ lemma isLogicalGate_of_conjugates_toSubgroup
   obtain ⟨g', hg', hgg'⟩ := hconj g hg
   have hstab : g'.gate • ψ = ψ := by
     apply Subtype.ext
-    simpa [smul_QState_val, NQubitPauliGroupElement.gate_val] using hψ g' hg'
+    simpa [IsStabilizedBy, IsStabilizedVec, smul_QState_val,
+      NQubitPauliGroupElement.gate_val] using hψ g' hg'
   have hconjψ : (conjByGate U g.gate) • ψ = g'.gate • ψ := by
     simpa [NQubitPauliGroupElement.gate_eq_toGate] using congrArg (fun V => V • ψ) hgg'
   calc

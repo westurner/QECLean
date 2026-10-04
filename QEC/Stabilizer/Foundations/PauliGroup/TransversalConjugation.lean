@@ -43,6 +43,9 @@ every qubit. Reducibly `tensorPowGate n G`. -/
 noncomputable abbrev uniformTransversalGate (n : ℕ) (G : OneQubitGate) : NQubitGate n :=
   tensorPowGate n G
 
+@[simp] lemma uniformTransversalGate_val (n : ℕ) (G : OneQubitGate) :
+    (uniformTransversalGate n G).val = uniformTransversalGateMatrix n G := rfl
+
 /-- Conjugation by a uniform transversal gate (U P U†) distributes to
 component-wise single-qubit conjugation. -/
 lemma uniformTransversalGateMatrix_conjugation
@@ -200,22 +203,33 @@ def invSConjXIImage (op : NQubitPauliOperator n) : NQubitPauliOperator n :=
 /-- Pointwise scalar contribution of `inv_S` conjugation on an X/I Pauli
 operator: `X` contributes `-1`, `I` contributes `1`. -/
 noncomputable def invSConjXIScalar (op : NQubitPauliOperator n) : ℂ :=
-  (Finset.univ : Finset (Fin n)).prod (fun i => if op i = .X then (-1 : ℂ) else 1)
+  by
+    classical
+    exact (Finset.univ : Finset (Fin n)).prod
+      (fun i => if op i = .X then (-1 : ℂ) else 1)
 
 /-- Support of X positions in an n-qubit Pauli operator. -/
-def xSupport (op : NQubitPauliOperator n) : Finset (Fin n) :=
-  (Finset.univ : Finset (Fin n)).filter (fun i => op i = .X)
+noncomputable def xSupport (op : NQubitPauliOperator n) : Finset (Fin n) := by
+  letI : DecidablePred (fun i : Fin n => op i = PauliOperator.X) :=
+    fun i => instDecidableEqPauliOperator (op i) PauliOperator.X
+  exact (Finset.univ : Finset (Fin n)).filter (fun i => op i = .X)
 
 /-- `invSConjXIScalar` is the product over X-support of `-1`. -/
 lemma invSConjXIScalar_eq_prod_xSupport (op : NQubitPauliOperator n) :
     invSConjXIScalar op = (xSupport op).prod (fun _ => (-1 : ℂ)) := by
-  simp [invSConjXIScalar, xSupport, Finset.prod_ite]
+  letI : DecidablePred (fun i : Fin n => op i = PauliOperator.X) :=
+    fun i => instDecidableEqPauliOperator (op i) PauliOperator.X
+  simpa [invSConjXIScalar, xSupport] using
+    (Finset.prod_filter
+      (s := (Finset.univ : Finset (Fin n)))
+      (p := fun i : Fin n => op i = PauliOperator.X)
+      (f := fun _ => (-1 : ℂ))).symm
 
 /-- `invSConjXIScalar` equals `(-1)` to the number of X positions. -/
 lemma invSConjXIScalar_eq_negOne_pow_xSupportCard (op : NQubitPauliOperator n) :
     invSConjXIScalar op = ((-1 : ℂ) ^ (xSupport op).card) := by
   rw [invSConjXIScalar_eq_prod_xSupport]
-  simp
+  simp only [Finset.prod_const]
 
 /-- `inv_S` conjugates an X/I-valued n-qubit Pauli operator to the corresponding
 Y/I image, up to the product of local `-1` factors (U P U†). -/

@@ -40,7 +40,7 @@ namespace NQubitPauliGroupElement
 
 /-- The set of elements appearing in the list `L`. -/
 def listToSet (L : List (NQubitPauliGroupElement n)) : Set (NQubitPauliGroupElement n) :=
-  setOf (· ∈ L)
+  Set.ofPred (fun g => g ∈ L)
 
 /-- Every element of the list has phase 0 (no global phase factor i, -1, or -i).
 -/
@@ -72,7 +72,8 @@ When a code defines `generatorsList` as either `List.ofFn f` or a literal list
 lemma listToSet_ofFn {k : ℕ} (f : Fin k → NQubitPauliGroupElement n) :
     listToSet (List.ofFn f) = Set.range f := by
   ext g
-  rw [listToSet, Set.mem_setOf, Set.mem_range]
+  change g ∈ List.ofFn f ↔ g ∈ Set.range f
+  rw [Set.mem_range]
   exact List.mem_ofFn' f g
 
 /-- `List.ofFn f` has all phase powers 0 iff each `f i` has phase power 0. -/
@@ -86,17 +87,17 @@ lemma AllPhaseZero_ofFn {k : ℕ} (f : Fin k → NQubitPauliGroupElement n)
 (NQubitPauliGroupElement n)) :
     listToSet (a :: L) = insert a (listToSet L) := by
   ext g
-  simp only [listToSet, Set.mem_setOf, Set.mem_insert_iff, List.mem_cons]
+  simp only [listToSet, Set.mem_ofPred_eq, Set.mem_insert_iff, List.mem_cons]
 
 /-- The set of elements of the empty list is empty. -/
 @[simp] lemma listToSet_nil : listToSet ([] : List (NQubitPauliGroupElement n)) = ∅ := by
   ext g
-  simp only [listToSet, Set.mem_setOf, List.mem_nil_iff, Set.mem_empty_iff_false]
+  simp only [listToSet, Set.mem_ofPred_eq, List.mem_nil_iff, Set.mem_empty_iff_false]
 
 /-- The set of elements of `[a]` is `{a}`. -/
 @[simp] lemma listToSet_singleton (a : NQubitPauliGroupElement n) : listToSet [a] = {a} := by
   ext g
-  simp only [listToSet, Set.mem_setOf, List.mem_cons, List.mem_nil_iff, or_false,
+  simp only [listToSet, Set.mem_ofPred_eq, List.mem_cons, List.mem_nil_iff, or_false,
     Set.mem_singleton_iff]
 
 /-- `AllPhaseZero (a :: L)` iff `a` has phase 0 and `AllPhaseZero L`. -/
@@ -133,7 +134,7 @@ theorem rowsLinearIndependent_implies_independentGenerators (L : List (NQubitPau
         (fun j => checkMatrix L j) '' (↑(Finset.univ.erase i) : Set (Fin L.length)) := by
     intro x hx
     obtain ⟨y, hy, rfl⟩ := hx
-    rw [listToSet, Set.mem_diff, Set.mem_setOf] at hy
+    rw [listToSet, Set.mem_sdiff, Set.mem_ofPred_eq] at hy
     obtain ⟨hy_mem, hy_ne⟩ := hy
     obtain ⟨j, hj⟩ := List.mem_iff_get.mp hy_mem
     refine ⟨j, Finset.mem_erase.mpr ⟨?_, Finset.mem_univ j⟩, ?_⟩
@@ -156,7 +157,8 @@ theorem rowsLinearIndependent_implies_independentGenerators (L : List (NQubitPau
     by
       exact Finsupp.notMem_support_iff.mp fun a ↦ hi_not_mem (hl_supp a)
   set l' := Finsupp.single i (1 : ZMod 2) + l with hl'
-  have h_comb_zero : Finsupp.linearCombination (ZMod 2) (checkMatrix L) l' = 0 := by
+  have h_comb_zero :
+      Finsupp.linearCombination (ZMod 2) (fun j => checkMatrix L j) l' = 0 := by
     rw [LinearMap.map_add, Finsupp.linearCombination_single, hl_eq, one_smul,
       ← two_smul (ZMod 2) (checkMatrix L i)]
     norm_num
