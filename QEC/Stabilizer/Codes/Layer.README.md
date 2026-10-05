@@ -19,9 +19,12 @@ Implemented in `Layer.lean`:
 - A finite oriented-edge indexing of a cuboid, edge-to-qubit numbering, and
   X/Z Pauli lifts from finite edge supports.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
-  layers, with exact support cardinality and Pauli-weight proofs.
+  layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
+  on the orientations specified by the paper. Support cardinalities and Pauli
+  weights are proved.
 - Separate stabilizer subgroups for the homogeneous bulk Z and X candidate
-  families. They are not combined: cross-commutation is not established.
+  families, and separate surface X/Z groups including standard boundaries.
+  They are not combined: cross-commutation is not established.
 - Even-cardinality proofs and an ordered matching for each X/Z check overlap.
   Matched y-segments, trivial crossing complements, X/Z incidence lines, and
   first/middle/last incidence labels are represented as finite geometry.
@@ -30,22 +33,30 @@ Implemented in `Layer.lean`:
 
 Implemented in `../Framework/Core/Logical/Decoder.lean`:
 
-- Exhaustive minimum-weight decoding for any supplied finite `StabilizerCode`.
+- Exhaustive minimum-weight decoding for any supplied finite `StabilizerCode`,
+  plus separate exact X-only and Z-only syndrome decoders.
 - A proof that a minimum-weight recovery is logically correct for errors below
   half a supplied distance lower bound, up to stabilizer and global Pauli phase.
+  The sector decoders have the same conditional correction guarantee.
 
 Still incomplete:
 
 - `LayerCode.outputCode` is still an input certificate; the CSS input does not
   yet produce the output code.
-- The bulk candidate checks omit the paper's rough/smooth boundary handling.
-- Figure-defined line- and point-defect Pauli supports are not encoded.
+- Figure-defined line- and point-defect Pauli supports are not encoded. In
+  particular, none of the eight line-junction or 22 point-defect check families
+  has yet been added to the generated check lists.
+- Sector decoders are exhaustive reference algorithms, not efficient
+  renormalization-group decoders. The Layer-codes paper does not specify its
+  suggested specialized decoders.
 - There is no proof that a complete candidate list commutes, has independent
   generators of length `N - k`, excludes `-I`, or has exactly `k` logical
   qubits. No output distance lower-bound theorem has been derived from the
   input hypotheses.
 - The current cuboid edge count is an explicit formal model, not yet proved to
-  match the paper's physical-qubit count or boundary spacing convention.
+  match the paper's exact physical-qubit count or boundary spacing convention.
+  For positive dimensions, it is now bounded between three and twelve times
+  `n * nX * nZ`, establishing the same asymptotic volume scaling.
 
 The bulk X and Z groups must remain separate until the defect modifications
 that repair their cross-commutation are implemented and proved.
@@ -62,9 +73,9 @@ Factory environment. Before starting, check `command -v lean lake rg` and
    lattice model. Record the relationship between the finite edge count and
    the paper's scaling equation before calling this the paper's exact output
    qubit count.
-2. **Complete each surface layer.** Add the rough and smooth boundary checks
-   and prove their support/weight laws. Confirm the bulk check lists have the
-   correct omissions where line defects replace ordinary surface checks.
+2. **Reconcile surface checks with defects.** Rough/smooth boundary supports
+  and their cardinality laws are implemented. Confirm which ordinary surface
+  checks must be omitted or replaced where line defects meet those boundaries.
 3. **Encode line-defect checks.** Translate all eight line-junction cases from
    the paper (three x-oriented, three z-oriented, and trivial/nontrivial
    y-oriented) into finite edge supports. Use ordered input-check support for
@@ -88,11 +99,12 @@ Factory environment. Before starting, check `command -v lean lake rg` and
    input. First derive a lower-bound theorem with explicit hypotheses; reserve
    `HasCodeDistance` for concrete instances where an exact witness and exact
    minimum are proved.
-8. **Connect and test decoding.** Keep the existing exhaustive decoder as a
-   correctness reference for small finite examples. Add an efficient
-   Layer-specific decoder only as a separate result; the paper does not supply
-   one. Test the full constructor on the 3-qubit repetition, `[[4,2,2]]`, Shor,
-   and Steane examples after their defect supports are available.
+8. **Connect and test decoding.** Keep the exhaustive general and sector
+  decoders as correctness references for small finite examples. Select and
+  prove an efficient Layer-specific decoder separately; the paper leaves this
+  algorithm open. Test the full constructor on the 3-qubit repetition,
+  `[[4,2,2]]`, Shor, and Steane examples after their defect supports are
+  available.
 
 ## Definition of Done
 

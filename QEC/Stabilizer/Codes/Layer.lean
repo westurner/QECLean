@@ -233,6 +233,39 @@ lemma card_layerLatticeEdge (n nX nZ : ℕ) :
   simp only [LayerLatticeEdge, Fintype.card_sum, Fintype.card_prod, Fintype.card_fin]
   ring
 
+/-- The finite edge count is at least three times the volume product. -/
+lemma card_layerLatticeEdge_lower_bound {n nX nZ : ℕ}
+  : 3 * n * nX * nZ ≤ Fintype.card (LayerLatticeEdge n nX nZ) := by
+  rw [card_layerLatticeEdge]
+  have h₁ : nZ * n * nX ≤ nZ * (n + 1) * (nX + 1) := by gcongr <;> omega
+  have h₂ : nZ * n * nX ≤ (nZ + 1) * n * (nX + 1) := by gcongr <;> omega
+  have h₃ : nZ * n * nX ≤ (nZ + 1) * (n + 1) * nX := by gcongr <;> omega
+  calc
+    3 * n * nX * nZ = nZ * n * nX + nZ * n * nX + nZ * n * nX := by ring
+    _ ≤ nZ * (n + 1) * (nX + 1) +
+        (nZ + 1) * n * (nX + 1) + (nZ + 1) * (n + 1) * nX := by omega
+
+/-- The finite edge count is at most twelve times the volume product. -/
+lemma card_layerLatticeEdge_upper_bound {n nX nZ : ℕ}
+    (hn : 0 < n) (hnX : 0 < nX) (hnZ : 0 < nZ) :
+    Fintype.card (LayerLatticeEdge n nX nZ) ≤ 12 * n * nX * nZ := by
+  rw [card_layerLatticeEdge]
+  have hn' : n + 1 ≤ 2 * n := by omega
+  have hnX' : nX + 1 ≤ 2 * nX := by omega
+  have hnZ' : nZ + 1 ≤ 2 * nZ := by omega
+  have h₁ : nZ * (n + 1) * (nX + 1) ≤ nZ * (2 * n) * (2 * nX) := by
+    gcongr
+  have h₂ : (nZ + 1) * n * (nX + 1) ≤ (2 * nZ) * n * (2 * nX) := by
+    gcongr
+  have h₃ : (nZ + 1) * (n + 1) * nX ≤ (2 * nZ) * (2 * n) * nX := by
+    gcongr
+  calc
+    nZ * (n + 1) * (nX + 1) +
+        (nZ + 1) * n * (nX + 1) + (nZ + 1) * (n + 1) * nX ≤
+      nZ * (2 * n) * (2 * nX) +
+        (2 * nZ) * n * (2 * nX) + (2 * nZ) * (2 * n) * nX := by omega
+    _ = 12 * n * nX * nZ := by ring
+
 /-- Output physical-qubit count fixed by the finite cuboid edge lattice. -/
 abbrev LayerOutputSize (n nX nZ : ℕ) : ℕ :=
   Fintype.card (LayerLatticeEdge n nX nZ)
@@ -427,6 +460,44 @@ lemma card_yzSurfacePlaquetteEdges {n nX nZ : ℕ}
   simp [yzSurfacePlaquetteEdges, layerYEdge, layerZEdge,
     fin_castSucc_ne_succ, fin_succ_ne_castSucc]
 
+/-- The three edges of a rough-boundary plaquette on an xz layer. -/
+def xzRoughBoundaryPlaquetteEdges {n nX nZ : ℕ}
+    (q : Fin n) (x : Fin nZ) (isUpper : Bool) (hnX : 0 < nX) :
+    Finset (LayerLatticeEdge n nX nZ) := by
+  let zCell : Fin nX := if isUpper then ⟨nX - 1, by omega⟩ else ⟨0, hnX⟩
+  let zVertex : Fin (nX + 1) :=
+    if isUpper then ⟨nX, by omega⟩ else ⟨0, by omega⟩
+  exact {layerXEdge x q.castSucc zVertex,
+    layerZEdge x.castSucc q.castSucc zCell,
+    layerZEdge x.succ q.castSucc zCell}
+
+/-- Rough-boundary xz plaquettes have three distinct edges. -/
+lemma card_xzRoughBoundaryPlaquetteEdges {n nX nZ : ℕ}
+    (q : Fin n) (x : Fin nZ) (isUpper : Bool) (hnX : 0 < nX) :
+    (xzRoughBoundaryPlaquetteEdges q x isUpper hnX).card = 3 := by
+  classical
+  simp [xzRoughBoundaryPlaquetteEdges, layerXEdge, layerZEdge,
+    fin_castSucc_ne_succ, fin_succ_ne_castSucc]
+
+/-- The three edges of a rough-boundary plaquette on a yz layer. -/
+def yzRoughBoundaryPlaquetteEdges {n nX nZ : ℕ}
+    (check : Fin nZ) (q : Fin n) (isUpper : Bool) (hnX : 0 < nX) :
+    Finset (LayerLatticeEdge n nX nZ) := by
+  let zCell : Fin nX := if isUpper then ⟨nX - 1, by omega⟩ else ⟨0, hnX⟩
+  let zVertex : Fin (nX + 1) :=
+    if isUpper then ⟨nX, by omega⟩ else ⟨0, by omega⟩
+  exact {layerYEdge check.castSucc q zVertex,
+    layerZEdge check.castSucc q.castSucc zCell,
+    layerZEdge check.castSucc q.succ zCell}
+
+/-- Rough-boundary yz plaquettes have three distinct edges. -/
+lemma card_yzRoughBoundaryPlaquetteEdges {n nX nZ : ℕ}
+    (check : Fin nZ) (q : Fin n) (isUpper : Bool) (hnX : 0 < nX) :
+    (yzRoughBoundaryPlaquetteEdges check q isUpper hnX).card = 3 := by
+  classical
+  simp [yzRoughBoundaryPlaquetteEdges, layerYEdge, layerZEdge,
+    fin_castSucc_ne_succ, fin_succ_ne_castSucc]
+
 /-- Canonical Z-plaquette generator in a physical-qubit xz layer. -/
 noncomputable def xzSurfacePlaquette {n nX nZ : ℕ}
     (q : Fin n) (x : Fin nZ) (z : Fin nX) :
@@ -528,6 +599,73 @@ theorem layerSurfacePlaquetteCandidates_zType {n nX nZ : ℕ}
       rcases hyz with ⟨face, hface, rfl⟩
       exact layerZPauli_isZType _
 
+/-- Rough-boundary plaquette checks on xz layers. -/
+noncomputable def xzRoughBoundaryPlaquetteCandidates {n nX nZ : ℕ} :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) := by
+  classical
+  exact if hnX : 0 < nX then
+    ((Finset.univ : Finset (Fin n × Fin nZ × Bool)).toList).map
+      (fun p => layerZPauli
+        (xzRoughBoundaryPlaquetteEdges p.1 p.2.1 p.2.2 hnX))
+  else []
+
+/-- Rough-boundary plaquette checks on yz layers. -/
+noncomputable def yzRoughBoundaryPlaquetteCandidates {n nX nZ : ℕ} :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) := by
+  classical
+  exact if hnX : 0 < nX then
+    ((Finset.univ : Finset (Fin nZ × Fin n × Bool)).toList).map
+      (fun p => layerZPauli
+        (yzRoughBoundaryPlaquetteEdges p.1 p.2.1 p.2.2 hnX))
+  else []
+
+/-- All rough-boundary Z plaquettes on the xz and yz layers. -/
+noncomputable def layerRoughBoundaryPlaquetteCandidates {n nX nZ : ℕ} :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :=
+  xzRoughBoundaryPlaquetteCandidates ++ yzRoughBoundaryPlaquetteCandidates
+
+/-- Rough-boundary plaquettes have weight three. -/
+theorem layerRoughBoundaryPlaquetteCandidates_weight {n nX nZ : ℕ}
+    (g : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (hg : g ∈ layerRoughBoundaryPlaquetteCandidates) :
+    NQubitPauliGroupElement.weight g = 3 := by
+  classical
+  simp only [layerRoughBoundaryPlaquetteCandidates, List.mem_append] at hg
+  rcases hg with hxz | hyz
+  · by_cases hnX : 0 < nX
+    · simp only [xzRoughBoundaryPlaquetteCandidates, dite_eq_left hnX,
+        List.mem_map] at hxz
+      rcases hxz with ⟨p, hp, rfl⟩
+      rw [weight_layerZPauli, card_xzRoughBoundaryPlaquetteEdges]
+    · simp [xzRoughBoundaryPlaquetteCandidates, hnX] at hxz
+  · by_cases hnX : 0 < nX
+    · simp only [yzRoughBoundaryPlaquetteCandidates, dite_eq_left hnX,
+        List.mem_map] at hyz
+      rcases hyz with ⟨p, hp, rfl⟩
+      rw [weight_layerZPauli, card_yzRoughBoundaryPlaquetteEdges]
+    · simp [yzRoughBoundaryPlaquetteCandidates, hnX] at hyz
+
+/-- Rough-boundary plaquette checks are Z-type. -/
+theorem layerRoughBoundaryPlaquetteCandidates_zType {n nX nZ : ℕ}
+    (g : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (hg : g ∈ layerRoughBoundaryPlaquetteCandidates) :
+    NQubitPauliGroupElement.IsZTypeElement g := by
+  classical
+  simp only [layerRoughBoundaryPlaquetteCandidates, List.mem_append] at hg
+  rcases hg with hxz | hyz
+  · by_cases hnX : 0 < nX
+    · simp only [xzRoughBoundaryPlaquetteCandidates, dite_eq_left hnX,
+        List.mem_map] at hxz
+      rcases hxz with ⟨p, hp, rfl⟩
+      exact layerZPauli_isZType _
+    · simp [xzRoughBoundaryPlaquetteCandidates, hnX] at hxz
+  · by_cases hnX : 0 < nX
+    · simp only [yzRoughBoundaryPlaquetteCandidates, dite_eq_left hnX,
+        List.mem_map] at hyz
+      rcases hyz with ⟨p, hp, rfl⟩
+      exact layerZPauli_isZType _
+    · simp [yzRoughBoundaryPlaquetteCandidates, hnX] at hyz
+
 /-- Lower interior grid coordinate embedded in `Fin m`. -/
 private def interiorCast {m : ℕ} (i : Fin (m - 1)) : Fin m := by
   have hi : i.val < m - 1 := i.isLt
@@ -570,6 +708,44 @@ lemma card_xzSurfaceStarEdges {n nX nZ : ℕ}
     (xzSurfaceStarEdges q x z).card = 4 := by
   classical
   simp [xzSurfaceStarEdges, layerXEdge, layerZEdge,
+    interiorCast_ne_succ, interiorSucc_ne_cast]
+
+/-- The three edges in an X-star at a smooth xz-layer boundary. -/
+noncomputable def xzSmoothBoundaryStarEdges {n nX nZ : ℕ}
+    (q : Fin n) (z : Fin (nX - 1)) (isRight : Bool) (hnZ : 0 < nZ) :
+    Finset (LayerLatticeEdge n nX nZ) := by
+  let xCell : Fin nZ := if isRight then ⟨nZ - 1, by omega⟩ else ⟨0, hnZ⟩
+  let xVertex : Fin (nZ + 1) :=
+    if isRight then ⟨nZ, by omega⟩ else ⟨0, by omega⟩
+  exact {layerXEdge xCell q.castSucc (interiorSuccVertex (m := nX) z),
+    layerZEdge xVertex q.castSucc (interiorCast (m := nX) z),
+    layerZEdge xVertex q.castSucc (interiorSucc (m := nX) z)}
+
+/-- Smooth-boundary X-stars have weight three before defect replacement. -/
+lemma card_xzSmoothBoundaryStarEdges {n nX nZ : ℕ}
+    (q : Fin n) (z : Fin (nX - 1)) (isRight : Bool) (hnZ : 0 < nZ) :
+    (xzSmoothBoundaryStarEdges q z isRight hnZ).card = 3 := by
+  classical
+  simp [xzSmoothBoundaryStarEdges, layerXEdge, layerZEdge,
+    interiorCast_ne_succ, interiorSucc_ne_cast]
+
+/-- The three edges in an X-star at a smooth xy-layer boundary. -/
+noncomputable def xySmoothBoundaryStarEdges {n nX nZ : ℕ}
+    (check : Fin nX) (q : Fin (n - 1)) (isRight : Bool) (hnZ : 0 < nZ) :
+    Finset (LayerLatticeEdge n nX nZ) := by
+  let xCell : Fin nZ := if isRight then ⟨nZ - 1, by omega⟩ else ⟨0, hnZ⟩
+  let xVertex : Fin (nZ + 1) :=
+    if isRight then ⟨nZ, by omega⟩ else ⟨0, by omega⟩
+  exact {layerXEdge xCell (interiorSuccVertex (m := n) q) check.castSucc,
+    layerYEdge xVertex (interiorCast (m := n) q) check.castSucc,
+    layerYEdge xVertex (interiorSucc (m := n) q) check.castSucc}
+
+/-- Smooth-boundary xy-layer X-stars have three distinct edges. -/
+lemma card_xySmoothBoundaryStarEdges {n nX nZ : ℕ}
+    (check : Fin nX) (q : Fin (n - 1)) (isRight : Bool) (hnZ : 0 < nZ) :
+    (xySmoothBoundaryStarEdges check q isRight hnZ).card = 3 := by
+  classical
+  simp [xySmoothBoundaryStarEdges, layerXEdge, layerYEdge,
     interiorCast_ne_succ, interiorSucc_ne_cast]
 
 /-- The four in-plane edges incident to an interior vertex of an xy layer. -/
@@ -694,10 +870,79 @@ theorem layerInteriorStarCandidates_xType {n nX nZ : ℕ}
       rcases hyz with ⟨p, hp, rfl⟩
       exact layerXPauli_isXType _
 
+/-- Smooth-boundary X stars on physical-qubit xz layers. -/
+noncomputable def xzSmoothBoundaryStarCandidates {n nX nZ : ℕ} :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) := by
+  classical
+  exact if hnZ : 0 < nZ then
+    ((Finset.univ : Finset (Fin n × Fin (nX - 1) × Bool)).toList).map
+      (fun p => layerXPauli
+        (xzSmoothBoundaryStarEdges p.1 p.2.1 p.2.2 hnZ))
+  else []
+
+/-- Smooth-boundary X stars on input X-check xy layers. -/
+noncomputable def xySmoothBoundaryStarCandidates {n nX nZ : ℕ} :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) := by
+  classical
+  exact if hnZ : 0 < nZ then
+    ((Finset.univ : Finset (Fin nX × Fin (n - 1) × Bool)).toList).map
+      (fun p => layerXPauli
+        (xySmoothBoundaryStarEdges p.1 p.2.1 p.2.2 hnZ))
+  else []
+
+/-- All smooth-boundary X stars on the xz and xy layers. -/
+noncomputable def layerSmoothBoundaryStarCandidates {n nX nZ : ℕ} :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :=
+  xzSmoothBoundaryStarCandidates ++ xySmoothBoundaryStarCandidates
+
+/-- Smooth-boundary stars have weight three. -/
+theorem layerSmoothBoundaryStarCandidates_weight {n nX nZ : ℕ}
+    (g : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (hg : g ∈ layerSmoothBoundaryStarCandidates) :
+    NQubitPauliGroupElement.weight g = 3 := by
+  classical
+  simp only [layerSmoothBoundaryStarCandidates, List.mem_append] at hg
+  rcases hg with hxz | hxy
+  · by_cases hnZ : 0 < nZ
+    · simp only [xzSmoothBoundaryStarCandidates, dite_eq_left hnZ,
+        List.mem_map] at hxz
+      rcases hxz with ⟨p, hp, rfl⟩
+      rw [weight_layerXPauli, card_xzSmoothBoundaryStarEdges]
+    · simp [xzSmoothBoundaryStarCandidates, hnZ] at hxz
+  · by_cases hnZ : 0 < nZ
+    · simp only [xySmoothBoundaryStarCandidates, dite_eq_left hnZ,
+        List.mem_map] at hxy
+      rcases hxy with ⟨p, hp, rfl⟩
+      rw [weight_layerXPauli, card_xySmoothBoundaryStarEdges]
+    · simp [xySmoothBoundaryStarCandidates, hnZ] at hxy
+
+/-- Smooth-boundary star checks are X-type. -/
+theorem layerSmoothBoundaryStarCandidates_xType {n nX nZ : ℕ}
+    (g : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (hg : g ∈ layerSmoothBoundaryStarCandidates) :
+    NQubitPauliGroupElement.IsXTypeElement g := by
+  classical
+  simp only [layerSmoothBoundaryStarCandidates, List.mem_append] at hg
+  rcases hg with hxz | hxy
+  · by_cases hnZ : 0 < nZ
+    · simp only [xzSmoothBoundaryStarCandidates, dite_eq_left hnZ,
+        List.mem_map] at hxz
+      rcases hxz with ⟨p, hp, rfl⟩
+      exact layerXPauli_isXType _
+    · simp [xzSmoothBoundaryStarCandidates, hnZ] at hxz
+  · by_cases hnZ : 0 < nZ
+    · simp only [xySmoothBoundaryStarCandidates, dite_eq_left hnZ,
+        List.mem_map] at hxy
+      rcases hxy with ⟨p, hp, rfl⟩
+      exact layerXPauli_isXType _
+    · simp [xySmoothBoundaryStarCandidates, hnZ] at hxy
+
 /-- Surface-layer check candidates before line- and point-defect replacement. -/
 noncomputable def layerSurfaceCheckCandidates {n nX nZ : ℕ} :
     List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :=
-  layerInteriorStarCandidates ++ layerSurfacePlaquetteCandidates
+  layerInteriorStarCandidates ++
+    (layerSmoothBoundaryStarCandidates ++
+      (layerSurfacePlaquetteCandidates ++ layerRoughBoundaryPlaquetteCandidates))
 
 /-- Every unmodified surface-layer check candidate has weight at most four. -/
 theorem layerSurfaceCheckCandidates_weight_le_four {n nX nZ : ℕ}
@@ -705,9 +950,45 @@ theorem layerSurfaceCheckCandidates_weight_le_four {n nX nZ : ℕ}
     (hg : g ∈ layerSurfaceCheckCandidates) :
     NQubitPauliGroupElement.weight g ≤ 4 := by
   simp only [layerSurfaceCheckCandidates, List.mem_append] at hg
-  rcases hg with hstar | hplaquette
+  rcases hg with hstar | hrest
   · rw [layerInteriorStarCandidates_weight g hstar]
-  · rw [layerSurfacePlaquetteCandidates_weight g hplaquette]
+  · rcases hrest with hboundaryStar | hrest
+    · rw [layerSmoothBoundaryStarCandidates_weight g hboundaryStar]
+      omega
+    · rcases hrest with hplaquette | hboundaryPlaquette
+      · rw [layerSurfacePlaquetteCandidates_weight g hplaquette]
+      · rw [layerRoughBoundaryPlaquetteCandidates_weight g hboundaryPlaquette]
+        omega
+
+/-- All unmodified surface X stars, including smooth-boundary checks. -/
+noncomputable def layerSurfaceXCheckCandidates {n nX nZ : ℕ} :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :=
+  layerInteriorStarCandidates ++ layerSmoothBoundaryStarCandidates
+
+/-- Every unmodified surface X candidate is X-type. -/
+theorem layerSurfaceXCheckCandidates_xType {n nX nZ : ℕ}
+    (g : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (hg : g ∈ layerSurfaceXCheckCandidates) :
+    NQubitPauliGroupElement.IsXTypeElement g := by
+  simp only [layerSurfaceXCheckCandidates, List.mem_append] at hg
+  rcases hg with hinterior | hboundary
+  · exact layerInteriorStarCandidates_xType g hinterior
+  · exact layerSmoothBoundaryStarCandidates_xType g hboundary
+
+/-- All unmodified surface Z plaquettes, including rough-boundary checks. -/
+noncomputable def layerSurfaceZCheckCandidates {n nX nZ : ℕ} :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :=
+  layerSurfacePlaquetteCandidates ++ layerRoughBoundaryPlaquetteCandidates
+
+/-- Every unmodified surface Z candidate is Z-type. -/
+theorem layerSurfaceZCheckCandidates_zType {n nX nZ : ℕ}
+    (g : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (hg : g ∈ layerSurfaceZCheckCandidates) :
+    NQubitPauliGroupElement.IsZTypeElement g := by
+  simp only [layerSurfaceZCheckCandidates, List.mem_append] at hg
+  rcases hg with hsurface | hboundary
+  · exact layerSurfacePlaquetteCandidates_zType g hsurface
+  · exact layerRoughBoundaryPlaquetteCandidates_zType g hboundary
 
 /-- Stabilizer subgroup generated by the unmodified bulk Z plaquettes. -/
 noncomputable def layerBulkZStabilizerGroup {n nX nZ : ℕ} :
@@ -759,6 +1040,58 @@ noncomputable def layerBulkXStabilizerGroup {n nX nZ : ℕ} :
         (by
           intro z hz
           simp at hz)
+      simpa using hNoNeg)
+
+/-- Stabilizer subgroup generated by unmodified surface X stars and boundaries. -/
+noncomputable def layerSurfaceXStabilizerGroup {n nX nZ : ℕ} :
+    StabilizerGroup (LayerOutputSize n nX nZ) :=
+  StabilizerGroup.mkStabilizerFromGenerators (LayerOutputSize n nX nZ)
+    layerSurfaceXCheckCandidates
+    (by
+      intro g hg h hh
+      exact StabilizerGroup.CSSCommutationLemmas.XType_commutes
+        (layerSurfaceXCheckCandidates_xType g hg)
+        (layerSurfaceXCheckCandidates_xType h hh))
+    (by
+      have hNoNeg := CSS.negIdentity_not_mem_closure_union
+        (∅ : Set (NQubitPauliGroupElement (LayerOutputSize n nX nZ)))
+        (NQubitPauliGroupElement.listToSet
+          (n := LayerOutputSize n nX nZ) layerSurfaceXCheckCandidates)
+        (by
+          intro z hz
+          simp at hz)
+        (by
+          intro x hx
+          exact layerSurfaceXCheckCandidates_xType x hx)
+        (by
+          intro z hz
+          simp at hz)
+      simpa using hNoNeg)
+
+/-- Stabilizer subgroup generated by unmodified surface Z plaquettes and boundaries. -/
+noncomputable def layerSurfaceZStabilizerGroup {n nX nZ : ℕ} :
+    StabilizerGroup (LayerOutputSize n nX nZ) :=
+  StabilizerGroup.mkStabilizerFromGenerators (LayerOutputSize n nX nZ)
+    layerSurfaceZCheckCandidates
+    (by
+      intro g hg h hh
+      exact StabilizerGroup.CSSCommutationLemmas.ZType_commutes
+        (layerSurfaceZCheckCandidates_zType g hg)
+        (layerSurfaceZCheckCandidates_zType h hh))
+    (by
+      have hNoNeg := CSS.negIdentity_not_mem_closure_union
+        (NQubitPauliGroupElement.listToSet
+          (n := LayerOutputSize n nX nZ) layerSurfaceZCheckCandidates)
+        (∅ : Set (NQubitPauliGroupElement (LayerOutputSize n nX nZ)))
+        (by
+          intro z hz
+          exact layerSurfaceZCheckCandidates_zType z hz)
+        (by
+          intro x hx
+          simp at hx)
+        (by
+          intro z hz x hx
+          simp at hx)
       simpa using hNoNeg)
 
 /-- An X-check/physical-qubit Tanner incidence, hence an X junction. -/
@@ -1166,6 +1499,86 @@ theorem decode_spec
       ∀ other, StabilizerGroup.stabilizerSyndrome layer.outputCode other = target →
         NQubitPauliGroupElement.weight recovery ≤ NQubitPauliGroupElement.weight other :=
   StabilizerGroup.minimumWeightDecoder_spec layer.outputCode target error herror
+
+/-- Exhaustive minimum-weight decoding restricted to X-type output errors. -/
+noncomputable def decodeX
+    (layer : LayerCode input outputDistance)
+    (target : StabilizerGroup.StabilizerSyndrome layer.outputCode) :
+    Option (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :=
+  StabilizerGroup.minimumWeightXDecoder layer.outputCode target
+
+/-- A realizable X-type syndrome decodes to a minimum-weight X correction. -/
+theorem decodeX_spec
+    (layer : LayerCode input outputDistance)
+    (target : StabilizerGroup.StabilizerSyndrome layer.outputCode)
+    (error : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (herrorType : NQubitPauliGroupElement.IsXTypeElement error)
+    (herror : StabilizerGroup.stabilizerSyndrome layer.outputCode error = target) :
+    ∃ recovery, decodeX layer target = some recovery ∧
+      NQubitPauliGroupElement.IsXTypeElement recovery ∧
+      StabilizerGroup.stabilizerSyndrome layer.outputCode recovery = target ∧
+      ∀ other, NQubitPauliGroupElement.IsXTypeElement other →
+        StabilizerGroup.stabilizerSyndrome layer.outputCode other = target →
+          NQubitPauliGroupElement.weight recovery ≤ NQubitPauliGroupElement.weight other :=
+  StabilizerGroup.minimumWeightXDecoder_spec layer.outputCode target error herrorType herror
+
+/-- The X-sector decoder corrects errors below half the certified distance. -/
+theorem decodeX_corrects_below_half_distance
+    (layer : LayerCode input outputDistance)
+    (target : StabilizerGroup.StabilizerSyndrome layer.outputCode)
+    (error : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (herrorType : NQubitPauliGroupElement.IsXTypeElement error)
+    (herror : StabilizerGroup.stabilizerSyndrome layer.outputCode error = target)
+    (hweight : 2 * NQubitPauliGroupElement.weight error < outputDistance)
+    (recovery : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (hdecoded : decodeX layer target = some recovery) :
+    NQubitPauliGroupElement.weight (recovery * error) = 0 ∨
+      ∃ s ∈ layer.outputCode.toStabilizerGroup.toSubgroup,
+        s.operators = (recovery * error).operators := by
+  simpa only [decodeX] using
+    StabilizerGroup.minimumWeightXDecoder_corrects_below_half_distance
+      layer.outputCode outputDistance layer.outputDistance_lower_bound target error
+      herrorType herror hweight recovery hdecoded
+
+/-- Exhaustive minimum-weight decoding restricted to Z-type output errors. -/
+noncomputable def decodeZ
+    (layer : LayerCode input outputDistance)
+    (target : StabilizerGroup.StabilizerSyndrome layer.outputCode) :
+    Option (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :=
+  StabilizerGroup.minimumWeightZDecoder layer.outputCode target
+
+/-- A realizable Z-type syndrome decodes to a minimum-weight Z correction. -/
+theorem decodeZ_spec
+    (layer : LayerCode input outputDistance)
+    (target : StabilizerGroup.StabilizerSyndrome layer.outputCode)
+    (error : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (herrorType : NQubitPauliGroupElement.IsZTypeElement error)
+    (herror : StabilizerGroup.stabilizerSyndrome layer.outputCode error = target) :
+    ∃ recovery, decodeZ layer target = some recovery ∧
+      NQubitPauliGroupElement.IsZTypeElement recovery ∧
+      StabilizerGroup.stabilizerSyndrome layer.outputCode recovery = target ∧
+      ∀ other, NQubitPauliGroupElement.IsZTypeElement other →
+        StabilizerGroup.stabilizerSyndrome layer.outputCode other = target →
+          NQubitPauliGroupElement.weight recovery ≤ NQubitPauliGroupElement.weight other :=
+  StabilizerGroup.minimumWeightZDecoder_spec layer.outputCode target error herrorType herror
+
+/-- The Z-sector decoder corrects errors below half the certified distance. -/
+theorem decodeZ_corrects_below_half_distance
+    (layer : LayerCode input outputDistance)
+    (target : StabilizerGroup.StabilizerSyndrome layer.outputCode)
+    (error : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (herrorType : NQubitPauliGroupElement.IsZTypeElement error)
+    (herror : StabilizerGroup.stabilizerSyndrome layer.outputCode error = target)
+    (hweight : 2 * NQubitPauliGroupElement.weight error < outputDistance)
+    (recovery : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (hdecoded : decodeZ layer target = some recovery) :
+    NQubitPauliGroupElement.weight (recovery * error) = 0 ∨
+      ∃ s ∈ layer.outputCode.toStabilizerGroup.toSubgroup,
+        s.operators = (recovery * error).operators := by
+  simpa only [decodeZ] using
+    StabilizerGroup.minimumWeightZDecoder_corrects_below_half_distance
+      layer.outputCode outputDistance layer.outputDistance_lower_bound target error
+      herrorType herror hweight recovery hdecoded
 
 /-- The LayerCode decoder corrects every error below half the certified output distance. -/
 theorem decode_corrects_below_half_distance

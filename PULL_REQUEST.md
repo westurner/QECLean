@@ -33,7 +33,12 @@ input CSS code.
   to QECLean's `Fin`-indexed Pauli qubits.
 - Lift finite edge supports to X/Z Paulis and prove support, type, and weight
   properties. Define four-edge surface plaquettes and four-edge interior stars
-  on xz, xy, and yz layers.
+  on xz, xy, and yz layers, together with three-edge rough-boundary Z
+  plaquettes and smooth-boundary X stars in the orientations specified by the
+  paper.
+- Build separate same-type surface X/Z stabilizer groups that include those
+  standard boundary candidates. Cross-sector commutation with line/point defect
+  checks remains unproved because those checks are not yet encoded.
 - Derive even X/Z overlap from CSS commutation; pair overlap indices in their
   canonical order; define matched y-segments and their trivial remainder; and
   index X/Z line supports and their incidence positions.
@@ -46,11 +51,12 @@ input CSS code.
 ### Generic decoder
 
 `Framework/Core/Logical/Decoder.lean` defines a binary syndrome for a supplied
-finite stabilizer code, enumerates its Pauli candidates, and selects a
-minimum-weight recovery when the requested syndrome is realizable. It proves
-correction below half a supplied distance lower bound, up to stabilizers and a
-global Pauli phase. This is exhaustive reference decoding, not an efficient or
-Layer-specific decoder.
+finite stabilizer code, an exhaustive all-Pauli minimum-weight decoder, and
+separate exhaustive X-only and Z-only minimum-weight decoders. Each has a
+conditional correction theorem below half a supplied distance lower bound,
+up to stabilizers and global Pauli phase. `LayerCode` exposes all three.
+These are exact reference decoders, not efficient renormalization-group
+decoders.
 
 ## Compatibility notes
 
@@ -98,19 +104,23 @@ on yz planes, and junctions determined by the input Tanner incidences. It also
 states the scaling $N=\Theta(n n_X n_Z)$, $K=k$, and
 $D=\Omega(d\min(n_X,n_Z)/w)$, with maximum check weight six.
 
-No source reviewed contradicts that high-level arrangement. The important
-difference is scope: the paper specifies rough/smooth surface boundaries and
-explicit line- and point-defect checks (including ten bulk and twelve boundary
-point-defect patterns). This module currently models selected bulk checks and
-geometric incidence sets, not those complete defect checks. Its exact finite
+No source reviewed contradicts that high-level arrangement. The standard
+rough/smooth boundary checks are now included. The remaining gap is the paper's
+explicit line- and point-defect checks (eight line cases, ten bulk point cases,
+and twelve boundary point cases), whose supports are given as lattice diagrams.
+The current code has incidence lines and point locations, but not those
+diagram-specific check supports or their replacement rules. Its exact finite
 edge count is a formal indexing choice and has not been proved to match the
-paper's boundary-spacing convention or physical-qubit count. Consequently, the
-paper's distance, locality, topology, and scaling results are not theorems of
-this Lean module.
+paper's boundary-spacing convention or exact physical-qubit count. For positive
+dimensions, the formal edge count is now bounded between `3 n n_X n_Z` and
+`12 n n_X n_Z`, matching the paper's asymptotic volume scaling. Consequently,
+the paper's distance, locality, topology, and scaling results are not theorems
+of this Lean module.
 
-The paper explicitly leaves specialized decoding open. The generic exhaustive
-decoder added here is compatible as a separate finite correctness result; it
-does not supply the efficient Layer decoder suggested by the paper. Other
+The paper explicitly leaves specialized decoding open, while noting that a
+general renormalization-group decoder is applicable. The exact X/Z sector
+decoders added here are separate exhaustive reference algorithms; they do not
+implement that RG method or claim efficiency. Other
 published local-code constructions, including Portnoy's subdivided-manifold
 construction [#portnoy-2023] and Lin, Wills, and Hsieh's subdivision approach
 [#lin-wills-hsieh-2023], use different construction mechanisms rather than
@@ -121,6 +131,10 @@ indexing.
 
 - `lake build QEC.Stabilizer.Codes.Layer` under Lean `v4.35.0-rc3`: passed,
   `3,147/3,147` Lake jobs.
+- The Sustainable Factory root devcontainer installs PyMuPDF in an isolated
+  `/opt/pdf-tools` virtual environment for inspecting the paper's PDF check
+  diagrams. The root image could not be built here because Docker/Podman/Buildah
+  is absent; the standalone QECLean image is unchanged.
 
 ## References
 

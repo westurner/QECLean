@@ -1,4 +1,5 @@
 import Mathlib.Tactic
+import QEC.Stabilizer.Framework.Core.CSS.CSSPredicates
 import QEC.Stabilizer.Framework.Core.Logical.CodeDistance
 
 /-!
@@ -177,21 +178,21 @@ private noncomputable def syndromeCandidates {n k : ℕ} (code : StabilizerCode 
   classical
   exact Finset.univ.filter (fun error => stabilizerSyndrome code error = target)
 
-/-- Every nonempty finite syndrome class contains a minimum-weight recovery. -/
-private theorem exists_minimum_weight_syndrome_recovery {n k : ℕ}
-    (code : StabilizerCode n k) (target : StabilizerSyndrome code)
-    (hcandidates : (syndromeCandidates code target).Nonempty) :
-    ∃ recovery ∈ syndromeCandidates code target,
-      ∀ error ∈ syndromeCandidates code target,
+/-- A nonempty finite Pauli set contains an element of minimum weight. -/
+private theorem exists_minimum_weight_in {n : ℕ}
+    (candidates : Finset (NQubitPauliGroupElement n))
+    (hcandidates : candidates.Nonempty) :
+    ∃ recovery ∈ candidates,
+      ∀ error ∈ candidates,
         NQubitPauliGroupElement.weight recovery ≤ NQubitPauliGroupElement.weight error := by
   classical
-  let weights := (syndromeCandidates code target).image NQubitPauliGroupElement.weight
+  let weights := candidates.image NQubitPauliGroupElement.weight
   have hweights : weights.Nonempty := by
     rcases hcandidates with ⟨error, herror⟩
     exact ⟨NQubitPauliGroupElement.weight error,
       Finset.mem_image.mpr ⟨error, herror, rfl⟩⟩
   obtain ⟨recovery, hrecovery, hweight⟩ :
-      ∃ recovery ∈ syndromeCandidates code target,
+      ∃ recovery ∈ candidates,
         NQubitPauliGroupElement.weight recovery = weights.min' hweights := by
     rcases Finset.mem_image.mp (Finset.min'_mem weights hweights) with
       ⟨recovery, hrecovery, hweight⟩
@@ -203,6 +204,15 @@ private theorem exists_minimum_weight_syndrome_recovery {n k : ℕ}
   have hmin := Finset.min'_le weights (NQubitPauliGroupElement.weight error) herrorWeight
   rw [← hweight] at hmin
   exact hmin
+
+/-- Every nonempty finite syndrome class contains a minimum-weight recovery. -/
+private theorem exists_minimum_weight_syndrome_recovery {n k : ℕ}
+    (code : StabilizerCode n k) (target : StabilizerSyndrome code)
+    (hcandidates : (syndromeCandidates code target).Nonempty) :
+    ∃ recovery ∈ syndromeCandidates code target,
+      ∀ error ∈ syndromeCandidates code target,
+        NQubitPauliGroupElement.weight recovery ≤ NQubitPauliGroupElement.weight error :=
+  exists_minimum_weight_in (syndromeCandidates code target) hcandidates
 
 /-- Choose a minimum-weight Pauli with the requested syndrome. -/
 noncomputable def minimumWeightSyndromeRecovery {n k : ℕ}
@@ -248,6 +258,88 @@ theorem minimumWeightDecoder_spec {n k : ℕ} (code : StabilizerCode n k)
   · simp [minimumWeightDecoder, candidates, hcandidates, recovery]
   · intro other hother
     exact hspec.2 other (Finset.mem_filter.mpr ⟨Finset.mem_univ _, hother⟩)
+
+/-- Errors in a requested syndrome class restricted to one Pauli sector. -/
+private noncomputable def sectorSyndromeCandidates {n k : ℕ}
+    (code : StabilizerCode n k) (target : StabilizerSyndrome code)
+    (sector : NQubitPauliGroupElement n → Prop) : Finset (NQubitPauliGroupElement n) := by
+  classical
+  exact Finset.univ.filter fun error =>
+    sector error ∧ stabilizerSyndrome code error = target
+
+/-- Exhaustive minimum-weight decoding restricted to a supplied Pauli sector. -/
+private noncomputable def minimumWeightSectorDecoder {n k : ℕ}
+    (code : StabilizerCode n k) (target : StabilizerSyndrome code)
+    (sector : NQubitPauliGroupElement n → Prop) :
+    Option (NQubitPauliGroupElement n) := by
+  classical
+  let candidates := sectorSyndromeCandidates code target sector
+  by_cases h : candidates.Nonempty
+  · exact some (Classical.choose (exists_minimum_weight_in candidates h))
+  · exact none
+
+/-- A realizable sector syndrome returns a minimum-weight sector correction. -/
+private theorem minimumWeightSectorDecoder_spec {n k : ℕ}
+    (code : StabilizerCode n k) (target : StabilizerSyndrome code)
+    (sector : NQubitPauliGroupElement n → Prop)
+    (error : NQubitPauliGroupElement n)
+    (hsector : sector error)
+    (herror : stabilizerSyndrome code error = target) :
+    ∃ recovery, minimumWeightSectorDecoder code target sector = some recovery ∧
+      sector recovery ∧ stabilizerSyndrome code recovery = target ∧
+      ∀ other, sector other → stabilizerSyndrome code other = target →
+        NQubitPauliGroupElement.weight recovery ≤ NQubitPauliGroupElement.weight other := by
+  classical
+  let candidates := sectorSyndromeCandidates code target sector
+  have hcandidates : candidates.Nonempty := by
+    refine ⟨error, Finset.mem_filter.mpr ⟨Finset.mem_univ _, hsector, herror⟩⟩
+  let recovery := Classical.choose (exists_minimum_weight_in candidates hcandidates)
+  have hspec := Classical.choose_spec (exists_minimum_weight_in candidates hcandidates)
+  have hmem : recovery ∈ candidates := hspec.1
+  have hproperties := Finset.mem_filter.mp hmem
+  refine ⟨recovery, ?_, hproperties.2.1, hproperties.2.2, ?_⟩
+  · simp [minimumWeightSectorDecoder, candidates, hcandidates, recovery]
+  · intro other hotherSector hotherSyndrome
+    exact hspec.2 other (Finset.mem_filter.mpr
+      ⟨Finset.mem_univ _, hotherSector, hotherSyndrome⟩)
+
+/-- Exhaustive minimum-weight decoder restricted to X-type Pauli errors. -/
+noncomputable def minimumWeightXDecoder {n k : ℕ} (code : StabilizerCode n k)
+    (target : StabilizerSyndrome code) : Option (NQubitPauliGroupElement n) :=
+  minimumWeightSectorDecoder code target NQubitPauliGroupElement.IsXTypeElement
+
+/-- Correctness and sector-minimality of `minimumWeightXDecoder`. -/
+theorem minimumWeightXDecoder_spec {n k : ℕ} (code : StabilizerCode n k)
+    (target : StabilizerSyndrome code) (error : NQubitPauliGroupElement n)
+    (herrorType : NQubitPauliGroupElement.IsXTypeElement error)
+    (herror : stabilizerSyndrome code error = target) :
+    ∃ recovery, minimumWeightXDecoder code target = some recovery ∧
+      NQubitPauliGroupElement.IsXTypeElement recovery ∧
+      stabilizerSyndrome code recovery = target ∧
+      ∀ other, NQubitPauliGroupElement.IsXTypeElement other →
+        stabilizerSyndrome code other = target →
+          NQubitPauliGroupElement.weight recovery ≤ NQubitPauliGroupElement.weight other := by
+  exact minimumWeightSectorDecoder_spec code target
+    NQubitPauliGroupElement.IsXTypeElement error herrorType herror
+
+/-- Exhaustive minimum-weight decoder restricted to Z-type Pauli errors. -/
+noncomputable def minimumWeightZDecoder {n k : ℕ} (code : StabilizerCode n k)
+    (target : StabilizerSyndrome code) : Option (NQubitPauliGroupElement n) :=
+  minimumWeightSectorDecoder code target NQubitPauliGroupElement.IsZTypeElement
+
+/-- Correctness and sector-minimality of `minimumWeightZDecoder`. -/
+theorem minimumWeightZDecoder_spec {n k : ℕ} (code : StabilizerCode n k)
+    (target : StabilizerSyndrome code) (error : NQubitPauliGroupElement n)
+    (herrorType : NQubitPauliGroupElement.IsZTypeElement error)
+    (herror : stabilizerSyndrome code error = target) :
+    ∃ recovery, minimumWeightZDecoder code target = some recovery ∧
+      NQubitPauliGroupElement.IsZTypeElement recovery ∧
+      stabilizerSyndrome code recovery = target ∧
+      ∀ other, NQubitPauliGroupElement.IsZTypeElement other →
+        stabilizerSyndrome code other = target →
+          NQubitPauliGroupElement.weight recovery ≤ NQubitPauliGroupElement.weight other := by
+  exact minimumWeightSectorDecoder_spec code target
+    NQubitPauliGroupElement.IsZTypeElement error herrorType herror
 
 /-- A same-syndrome recovery no heavier than the error is correct below half-distance. -/
 theorem minimumWeightRecovery_corrects_below_half_distance {n k : ℕ}
@@ -321,6 +413,56 @@ theorem minimumWeightDecoder_corrects_below_half_distance {n k : ℕ}
     hsyndrome.trans herror.symm
   exact minimumWeightRecovery_corrects_below_half_distance code distance hdistance_lower_bound
     decoded error hsame' (hminimum error herror) hweight
+
+/-- The X-sector decoder corrects X-type errors below half the code distance. -/
+theorem minimumWeightXDecoder_corrects_below_half_distance {n k : ℕ}
+    (code : StabilizerCode n k) (distance : ℕ)
+    (hdistance_lower_bound : ∀ g,
+      IsNontrivialLogicalOperator g code.toStabilizerGroup →
+        0 < NQubitPauliGroupElement.weight g →
+          NQubitPauliGroupElement.weight g ≥ distance)
+    (target : StabilizerSyndrome code) (error : NQubitPauliGroupElement n)
+    (herrorType : NQubitPauliGroupElement.IsXTypeElement error)
+    (herror : stabilizerSyndrome code error = target)
+    (hweight : 2 * NQubitPauliGroupElement.weight error < distance)
+    (recovery : NQubitPauliGroupElement n)
+    (hdecoded : minimumWeightXDecoder code target = some recovery) :
+    NQubitPauliGroupElement.weight (recovery * error) = 0 ∨
+      ∃ s ∈ code.toStabilizerGroup.toSubgroup,
+        s.operators = (recovery * error).operators := by
+  obtain ⟨decoded, hdecode, _, hsyndrome, hminimum⟩ :=
+    minimumWeightXDecoder_spec code target error herrorType herror
+  have hdecoded_eq : recovery = decoded := Option.some.inj (hdecoded.symm.trans hdecode)
+  subst recovery
+  have hsame' : stabilizerSyndrome code decoded = stabilizerSyndrome code error :=
+    hsyndrome.trans herror.symm
+  exact minimumWeightRecovery_corrects_below_half_distance code distance hdistance_lower_bound
+    decoded error hsame' (hminimum error herrorType herror) hweight
+
+/-- The Z-sector decoder corrects Z-type errors below half the code distance. -/
+theorem minimumWeightZDecoder_corrects_below_half_distance {n k : ℕ}
+    (code : StabilizerCode n k) (distance : ℕ)
+    (hdistance_lower_bound : ∀ g,
+      IsNontrivialLogicalOperator g code.toStabilizerGroup →
+        0 < NQubitPauliGroupElement.weight g →
+          NQubitPauliGroupElement.weight g ≥ distance)
+    (target : StabilizerSyndrome code) (error : NQubitPauliGroupElement n)
+    (herrorType : NQubitPauliGroupElement.IsZTypeElement error)
+    (herror : stabilizerSyndrome code error = target)
+    (hweight : 2 * NQubitPauliGroupElement.weight error < distance)
+    (recovery : NQubitPauliGroupElement n)
+    (hdecoded : minimumWeightZDecoder code target = some recovery) :
+    NQubitPauliGroupElement.weight (recovery * error) = 0 ∨
+      ∃ s ∈ code.toStabilizerGroup.toSubgroup,
+        s.operators = (recovery * error).operators := by
+  obtain ⟨decoded, hdecode, _, hsyndrome, hminimum⟩ :=
+    minimumWeightZDecoder_spec code target error herrorType herror
+  have hdecoded_eq : recovery = decoded := Option.some.inj (hdecoded.symm.trans hdecode)
+  subst recovery
+  have hsame' : stabilizerSyndrome code decoded = stabilizerSyndrome code error :=
+    hsyndrome.trans herror.symm
+  exact minimumWeightRecovery_corrects_below_half_distance code distance hdistance_lower_bound
+    decoded error hsame' (hminimum error herrorType herror) hweight
 
 end StabilizerGroup
 end Quantum
