@@ -115,6 +115,9 @@ input CSS code.
 - Prove prefix-padding coordinates have no real owner and physical overlap
   cardinalities equal canonical-image overlap cardinalities. Exact absence
   of embedded owners and a prefix-star fixed-point law are also proved.
+  Generalize owner absence to the successor of every real-owner coordinate
+  using spacing, and prove the corresponding yz z edge stays fixed under
+  normalization. Reuse this law in the inward-face fixture.
 - Register structural computable equality for spaced owned edges. Resolve
   the earlier failed adjacency probe by explicit per-leg normalization and
   kernel `decide`: the finite forward-star fixture has one shared edge with

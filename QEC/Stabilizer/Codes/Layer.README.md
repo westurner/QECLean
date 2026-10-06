@@ -276,6 +276,9 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   edge. Spaced actual-owner faces now recover the ambient geometry in all
   three planes, with exact selected-leg weights and phase-zero Z type.
   Prefix-padding lookup and canonical-image overlap computation are proved.
+  The successor of every real-owner coordinate has no owner, and yz z edges
+  there remain fixed under normalization. The inward-face fixture now uses
+  this general spacing law rather than enumerating its two data owners.
   An incidence-derived span gate now excludes ordinary faces outside check
   support endpoints, with explicit singleton and prefix-padding laws. Its
   finite endpoint fixture verifies outward suppression and inward retention.

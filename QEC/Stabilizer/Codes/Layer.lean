@@ -2342,6 +2342,19 @@ lemma LayerGridLayout.indexAtVertex_eq_none_iff (layout : LayerGridLayout) {coun
     | some index =>
       exact False.elim (hmissing index (layout.indexAtVertex_spec coordinate index hindex))
 
+lemma LayerGridLayout.indexAtVertex_layerCoordinate_succ_eq_none
+    (layout : LayerGridLayout) {count : ℕ} (qubit : Fin count) :
+    layout.indexAtVertex (layout.layerCoordinate qubit).succ = none := by
+  apply (layout.indexAtVertex_eq_none_iff _).mpr
+  intro index heq
+  have hvalues := congrArg Fin.val heq
+  change layout.spacing * (qubit.val + 1) + 1 = layout.spacing * (index.val + 1) at hvalues
+  have hsmall : 1 < layout.spacing := by
+    have hspacing := layout.spacing_ge_four
+    omega
+  have hmod := congrArg (fun value : ℕ => value % layout.spacing) hvalues
+  simp [Nat.add_mod, Nat.mod_eq_of_lt hsmall] at hmod
+
 def LayerGridLayout.edgePosition (layout : LayerGridLayout) {n nX nZ : ℕ}
     (edge : LayerGridSurfaceEdge layout n nX nZ) :
     LayerLatticeEdge (layout.extent n) (layout.extent nX) (layout.extent nZ) :=
@@ -2487,6 +2500,16 @@ lemma CSSLayerInput.canonGridDefectEdge_z_inactive {n k nX nZ : ℕ}
       Sum.inr (Sum.inr (check, Sum.inr
         ((layout.layerCoordinate qubit).castSucc, zCoord))) := by
   simp [canonGridDefectEdge, layout.indexAtVertex_layerCoordinate, hinactive]
+
+lemma CSSLayerInput.canonGridDefectEdge_z_after_layer {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (check : Fin nZ) (qubit : Fin n) (zCoord : Fin (layout.extent nX)) :
+    input.canonGridDefectEdge layout
+        (Sum.inr (Sum.inr (check, Sum.inr
+          ((layout.layerCoordinate qubit).succ, zCoord)))) =
+      Sum.inr (Sum.inr (check, Sum.inr
+        ((layout.layerCoordinate qubit).succ, zCoord))) := by
+  simp [canonGridDefectEdge, layout.indexAtVertex_layerCoordinate_succ_eq_none]
 
 abbrev LayerGridPhysicalEdge {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
     (layout : LayerGridLayout) :=
@@ -3330,12 +3353,6 @@ lemma grid_zLine_inward_face_overlap {k : ℕ}
     layout.indexAtVertex_lt_spacing _ (by decide)
   have hz2 : layout.indexAtVertex (count := 1) (2 : Fin 9) = none :=
     layout.indexAtVertex_lt_spacing _ (by decide)
-  have hy5 : layout.indexAtVertex (count := 2) (5 : Fin 13) = none := by
-    apply (layout.indexAtVertex_eq_none_iff (count := 2) (5 : Fin 13)).mpr
-    intro qubit heq
-    have hvalue := congrArg Fin.val heq
-    fin_cases qubit <;>
-      norm_num [LayerGridLayout.layerCoordinate, LayerGridLayout.extent, layout] at hvalue
   have hface (leg : Fin 4) : input.canonGridDefectEdge layout (layerGridFaceEdge face leg) =
       normalizedFace leg := by
     fin_cases leg
@@ -3344,11 +3361,8 @@ lemma grid_zLine_inward_face_overlap {k : ℕ}
           Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (1 : Fin 9))))
       simp only [CSSLayerInput.canonGridDefectEdge, hz1]
       rfl
-    · change input.canonGridDefectEdge layout
-        (Sum.inr (Sum.inr ((0 : Fin 1), Sum.inr ((5 : Fin 13), (1 : Fin 8))))) =
-          Sum.inr (Sum.inr ((0 : Fin 1), Sum.inr ((5 : Fin 13), (1 : Fin 8))))
-      simp only [CSSLayerInput.canonGridDefectEdge, hy5]
-      rfl
+    · exact input.canonGridDefectEdge_z_after_layer layout (0 : Fin 1) (0 : Fin 2)
+        (1 : Fin 8)
     · change input.canonGridDefectEdge layout
         (Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (2 : Fin 9))))) =
           Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (2 : Fin 9))))
