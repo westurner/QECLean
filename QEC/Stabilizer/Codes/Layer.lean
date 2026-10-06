@@ -1933,6 +1933,17 @@ lemma CSSLayerInput.physicalEdge_eq_iff {n k nX nZ : ℕ}
       input.canonDefectEdge first = input.canonDefectEdge second :=
   Subtype.ext_iff
 
+lemma CSSLayerInput.physicalEdge_injective_of_owner_eq {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (first second : LayerSurfaceEdge n nX nZ)
+    (howner : layerSurfaceEdgeOwner first = layerSurfaceEdgeOwner second)
+    (hphysical : input.physicalEdge first = input.physicalEdge second) :
+    first = second := by
+  apply layerSurfaceEdgeOwner_position_injective
+  apply Prod.ext howner
+  have hcanon := (input.physicalEdge_eq_iff first second).mp hphysical
+  have hposition := congrArg layerSurfaceEdgePosition hcanon
+  simpa only [input.canonDefectEdge_position] using hposition
+
 noncomputable def CSSLayerInput.defectGluingSetoid {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) : Setoid (LayerSurfaceEdge n nX nZ) where
   r first second := input.canonDefectEdge first = input.canonDefectEdge second
@@ -2157,6 +2168,153 @@ lemma CSSLayerInput.localXStar_isXType {n k nX nZ : ℕ}
     NQubitPauliGroupElement.IsXTypeElement (input.localXStar vertex legs) := by
   classical
   exact input.physicalXPauli_isXType _
+
+inductive LayerFacePlane
+  | xz
+  | xy
+  | yz
+  deriving DecidableEq
+
+structure LayerFaceCell (n nX nZ : ℕ) where
+  xCell : Fin nZ
+  yCell : Fin n
+  zCell : Fin nX
+
+def layerFaceEdge {n nX nZ : ℕ} (plane : LayerFacePlane)
+    (cell : LayerFaceCell n nX nZ) : Fin 4 → LayerSurfaceEdge n nX nZ :=
+  match plane with
+  | .xz => fun leg =>
+      match leg.val with
+      | 0 => Sum.inl (cell.yCell, Sum.inl (cell.xCell, cell.zCell.castSucc))
+      | 1 => Sum.inl (cell.yCell, Sum.inr (cell.xCell.succ, cell.zCell))
+      | 2 => Sum.inl (cell.yCell, Sum.inl (cell.xCell, cell.zCell.succ))
+      | _ => Sum.inl (cell.yCell, Sum.inr (cell.xCell.castSucc, cell.zCell))
+  | .xy => fun leg =>
+      match leg.val with
+      | 0 => Sum.inr (Sum.inl
+          (cell.zCell, Sum.inl (cell.xCell, cell.yCell.castSucc)))
+      | 1 => xyLayerYEdge cell.zCell cell.xCell.succ cell.yCell
+      | 2 => Sum.inr (Sum.inl
+          (cell.zCell, Sum.inl (cell.xCell, cell.yCell.succ)))
+      | _ => xyLayerYEdge cell.zCell cell.xCell.castSucc cell.yCell
+  | .yz => fun leg =>
+      match leg.val with
+      | 0 => yzLayerYEdge cell.xCell cell.yCell cell.zCell.castSucc
+      | 1 => Sum.inr (Sum.inr
+          (cell.xCell, Sum.inr (cell.yCell.succ, cell.zCell)))
+      | 2 => yzLayerYEdge cell.xCell cell.yCell cell.zCell.succ
+      | _ => Sum.inr (Sum.inr
+          (cell.xCell, Sum.inr (cell.yCell.castSucc, cell.zCell)))
+
+def layerFaceOwner {n nX nZ : ℕ} (plane : LayerFacePlane)
+    (cell : LayerFaceCell n nX nZ) : LayerIndex n nX nZ :=
+  match plane with
+  | .xz => Sum.inl cell.yCell
+  | .xy => Sum.inr (Sum.inl cell.zCell)
+  | .yz => Sum.inr (Sum.inr cell.xCell)
+
+lemma layerFaceEdge_owner {n nX nZ : ℕ} (plane : LayerFacePlane)
+    (cell : LayerFaceCell n nX nZ) (leg : Fin 4) :
+    layerSurfaceEdgeOwner (layerFaceEdge plane cell leg) = layerFaceOwner plane cell := by
+  cases plane <;> fin_cases leg <;> rfl
+
+lemma layerFaceEdge_injective {n nX nZ : ℕ} (plane : LayerFacePlane)
+    (cell : LayerFaceCell n nX nZ) : Function.Injective (layerFaceEdge plane cell) := by
+  intro first second heq
+  fin_cases first <;> fin_cases second <;> cases plane <;>
+    simp_all [layerFaceEdge, xyLayerYEdge, yzLayerYEdge, Fin.ext_iff]
+
+lemma CSSLayerInput.physicalFaceEdge_injective {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (plane : LayerFacePlane)
+    (cell : LayerFaceCell n nX nZ) :
+    Function.Injective (fun leg => input.physicalEdge (layerFaceEdge plane cell leg)) := by
+  intro first second heq
+  apply layerFaceEdge_injective plane cell
+  apply input.physicalEdge_injective_of_owner_eq _ _ _ heq
+  rw [layerFaceEdge_owner, layerFaceEdge_owner]
+
+noncomputable def CSSLayerInput.localZPlaquette {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (plane : LayerFacePlane)
+    (cell : LayerFaceCell n nX nZ) (legs : Finset (Fin 4)) :
+    NQubitPauliGroupElement (Fintype.card (LayerPhysicalEdge input)) := by
+  classical
+  exact input.physicalZPauli (legs.image (layerFaceEdge plane cell))
+
+lemma CSSLayerInput.localZPlaquette_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (plane : LayerFacePlane)
+    (cell : LayerFaceCell n nX nZ) (legs : Finset (Fin 4)) :
+    NQubitPauliGroupElement.weight (input.localZPlaquette plane cell legs) = legs.card := by
+  classical
+  rw [localZPlaquette, physicalZPauli_weight]
+  simp only [physicalSupport, Finset.image_image]
+  exact Finset.card_image_of_injective _ (input.physicalFaceEdge_injective plane cell)
+
+lemma CSSLayerInput.localZPlaquette_weight_le_four {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (plane : LayerFacePlane)
+    (cell : LayerFaceCell n nX nZ) (legs : Finset (Fin 4)) :
+    NQubitPauliGroupElement.weight (input.localZPlaquette plane cell legs) ≤ 4 := by
+  rw [input.localZPlaquette_weight]
+  exact (Finset.card_le_univ legs).trans_eq (Fintype.card_fin 4)
+
+lemma CSSLayerInput.localZPlaquette_univ_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (plane : LayerFacePlane)
+    (cell : LayerFaceCell n nX nZ) :
+    NQubitPauliGroupElement.weight (input.localZPlaquette plane cell Finset.univ) = 4 := by
+  rw [input.localZPlaquette_weight]
+  simp
+
+lemma CSSLayerInput.localZPlaquette_isZType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (plane : LayerFacePlane)
+    (cell : LayerFaceCell n nX nZ) (legs : Finset (Fin 4)) :
+    NQubitPauliGroupElement.IsZTypeElement (input.localZPlaquette plane cell legs) := by
+  classical
+  exact input.physicalZPauli_isZType _
+
+lemma layerFaceEdge_xz_position {n nX nZ : ℕ} (cell : LayerFaceCell n nX nZ) :
+    (by
+      classical
+      exact (Finset.univ : Finset (Fin 4)).image
+          (fun leg => layerSurfaceEdgePosition (layerFaceEdge .xz cell leg)) =
+        xzSurfacePlaquetteEdges cell.yCell cell.xCell cell.zCell) := by
+  classical
+  have hlegs : (Finset.univ : Finset (Fin 4)) = {0, 1, 2, 3} := by decide
+  rw [hlegs]
+  simp [layerFaceEdge, layerSurfaceEdgePosition, xzSurfacePlaquetteEdges,
+    layerXEdge, layerZEdge]
+
+lemma layerFaceEdge_xy_position {n nX nZ : ℕ} (cell : LayerFaceCell n nX nZ) :
+    (by
+      classical
+      exact (Finset.univ : Finset (Fin 4)).image
+          (fun leg => layerSurfaceEdgePosition (layerFaceEdge .xy cell leg)) =
+        xySurfacePlaquetteEdges cell.zCell cell.xCell cell.yCell) := by
+  classical
+  have hlegs : (Finset.univ : Finset (Fin 4)) = {0, 1, 2, 3} := by decide
+  rw [hlegs]
+  simp [layerFaceEdge, layerSurfaceEdgePosition, xySurfacePlaquetteEdges,
+    xyLayerYEdge, layerXEdge, layerYEdge]
+
+lemma layerFaceEdge_yz_position {n nX nZ : ℕ} (cell : LayerFaceCell n nX nZ) :
+    (by
+      classical
+      exact (Finset.univ : Finset (Fin 4)).image
+          (fun leg => layerSurfaceEdgePosition (layerFaceEdge .yz cell leg)) =
+        yzSurfacePlaquetteEdges cell.xCell cell.yCell cell.zCell) := by
+  classical
+  have hlegs : (Finset.univ : Finset (Fin 4)) = {0, 1, 2, 3} := by decide
+  rw [hlegs]
+  simp [layerFaceEdge, layerSurfaceEdgePosition, yzSurfacePlaquetteEdges,
+    yzLayerYEdge, layerYEdge, layerZEdge]
+
+lemma layerFaceEdge_yz_owned {n nX nZ : ℕ} (cell : LayerFaceCell n nX nZ) :
+    (by
+      classical
+      exact (Finset.univ : Finset (Fin 4)).image (layerFaceEdge .yz cell) =
+        yzOwnedPlaquetteEdges cell.xCell cell.yCell cell.zCell) := by
+  classical
+  have hlegs : (Finset.univ : Finset (Fin 4)) = {0, 1, 2, 3} := by decide
+  rw [hlegs]
+  simp [layerFaceEdge, yzOwnedPlaquetteEdges]
 
 /-- Position of an incident data layer along one ordered check layer. -/
 inductive CheckLayerJunctionPosition

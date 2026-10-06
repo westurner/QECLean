@@ -48,8 +48,14 @@ input CSS code.
   proves that idempotent normalization can destroy even overlap.
 - Add twelve bulk half-star leg slots and prove that each four-leg plane
   projection recovers its original surface star. Selecting at most six legs
-  yields a normalized X check of weight at most six. Boundary and plaquette
-  combinators and the diagram-specific case table are not yet implemented.
+  yields a normalized X check of weight at most six. Boundary truncation,
+  coupling plaquettes, and the diagram-specific case table remain incomplete.
+- Add four-leg owned planar faces in all three orientations, with exact
+  surface-plaquette projection laws and yz-owned support recovery. Prove
+  canonical representatives remain distinct within an owner layer, yielding
+  exact selected-leg weight and phase-zero Z type for normalized planar
+  plaquettes. Full faces retain weight four after active-defect normalization;
+  no coupling-specific replacement or global CSS law is inferred from this.
 - Lift owned xy stars and yz plaquettes to Paulis, prove weight four, and
   prove cross-layer disjointness and commutation for arbitrary coordinates.
   Their coordinate projections recover the original cuboid supports. A
@@ -225,7 +231,8 @@ the Layer construction plan. Recorded checks at that checkpoint:
   and the output CSS/dimension/distance and RG obligations remain unfinished.
 - The canonical-edge architecture loop also passes focused Lean checks and
   the `3,147`-job Layer build for normalization, physical support/Pauli lifts,
-  and bulk-leg projection regressions. The original linter warnings remain;
+  bulk-leg/face projection regressions, owner-fiber injectivity, and exact
+  planar Z-plaquette weights. The original linter warnings remain;
   no proof placeholders or custom axioms were introduced.
   The parent documentation gate (`make -C docs html`) also succeeds with
   29 warnings about existing documentation references.

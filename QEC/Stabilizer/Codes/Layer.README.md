@@ -46,7 +46,14 @@ Implemented in `Layer.lean`:
   projection recovers its existing surface-star geometry. `localXStar` has
   phase-zero X type and weight at most six whenever at most six legs are
   selected. No diagram-specific line/point template is inferred from this
-  generic combinator; boundary legs and plaquette combinators remain missing.
+  generic combinator; boundary legs and coupling-specific plaquettes remain missing.
+- `LayerFaceCell`, `LayerFacePlane`, and `layerFaceEdge` give four owned legs
+  for a planar face. Their projections recover all three existing surface
+  plaquettes, and the yz-owned support is recovered exactly. The canonical
+  projection is injective within each owner layer, so `localZPlaquette`
+  preserves the exact number of selected legs and has phase-zero Z type.
+  Every such check has weight at most four; a full face has weight exactly
+  four. These are planar primitives, not defect replacement/coupling checks.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -156,8 +163,10 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   that the convention realizes the paper's code.
 2. **Local legs and boundary rules.** Twelve bulk half-star leg slots and their
   three surface-star projection laws are implemented, along with normalized
-  X-star type and six-leg weight bounds. Add boundary-aware legs and
-  face-centered plaquette supports in owned coordinates. Specify the
+  X-star type and six-leg weight bounds. Four-leg planar face combinators,
+  all three projection laws, owner-fiber injectivity, and exact normalized
+  Z-plaquette weights are also implemented. Add boundary-aware star/face
+  legs and coupling-specific plaquette supports in owned coordinates. Specify the
   actual terminated direction for first/last incidences from the diagrams;
   do not infer it from the junction's axis name. Handle the existing `single`
   incidence case and degenerate dimensions explicitly. Record which surface
@@ -287,9 +296,10 @@ dimension/distance theorem, or RG decoder is claimed by these increments.
 
 This loop implements the proposed active-defect normalization and its
 fixed-point physical carrier, followed by the gluing equivalence relation,
-physical support/Pauli lifts, and bulk local-star leg combinators. Regression
+physical support/Pauli lifts, bulk local-star legs, and planar-face combinators. Regression
 theorems cover active and inactive gates, unmatched upper boundaries, all
-three four-leg plane projections, and loss of overlap parity under gluing.
+three star and face plane projections, exact yz-owned face recovery, exact
+normalized planar Z-check weights, and loss of overlap parity under gluing.
 
 Focused Lean checks and the Layer build (`3,147` jobs) pass, with the existing
 linter warnings unchanged. The parent documentation build also succeeds with
