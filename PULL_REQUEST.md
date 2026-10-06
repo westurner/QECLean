@@ -34,6 +34,11 @@ input CSS code.
 - Add a separate layer-owned surface-edge space with exact cardinality and
   owner/position injectivity. Coincident uncoupled xy/yz edges remain distinct.
   This is pre-defect geometry, not yet the output qubit index or defect gluing.
+- Lift owned xy stars and yz plaquettes to Paulis, prove weight four, and
+  prove cross-layer disjointness and commutation for arbitrary coordinates.
+  Their coordinate projections recover the original cuboid supports. A
+  generic numbered-support lift supplies support, weight, and even-overlap
+  commutation laws while preserving the existing cuboid lift APIs.
 - Lift finite edge supports to X/Z Paulis and prove support, type, and weight
   properties. Define four-edge surface plaquettes and four-edge interior stars
   on xz, xy, and yz layers, together with three-edge rough-boundary Z
@@ -151,7 +156,9 @@ xy star and yz plaquette share one edge. Therefore these lists cannot simply
 be appended into a stabilizer code. `LayerSurfaceEdge` introduces layer-owned
 pre-defect qubits, whose count is
 `6 * n * nX * nZ + 2 * (n * nX + n * nZ + nX * nZ)`, to distinguish uncoupled
-coincident edges. Explicit defect coupling, replacements, and the paper's
+coincident edges. The owned xy-star/yz-plaquette pair is now proved disjoint
+and commuting for arbitrary coordinates, with weight four and the same
+projected spatial supports. Explicit defect coupling, replacements, and the paper's
 superlattice spacing constant `c` still need to be connected to the output
 index; neither finite edge count is claimed as the paper's exact output count.
 
@@ -183,6 +190,13 @@ the Layer construction plan. Recorded checks at that checkpoint:
   modules; focused successes do not imply an umbrella-build success.
 - Preserved `.tmp` paper files and unrelated parent-worktree changes were
   left untouched.
+- The follow-on implementation loop kernel-checked each of four increments
+  (local y commutation, gated x/z lists, owned geometry/crossing regression,
+  and owned-check lifting) and rebuilt `QEC.Stabilizer.Codes.Layer` successfully
+  at `3,147` jobs each time. Whitespace and proof-placeholder audits passed.
+  The installed pinned toolchain in the parent container was used with
+  explicit user authorization. Final defect coupling/replacement integration
+  and the output CSS/dimension/distance and RG obligations remain unfinished.
 - The Sustainable Factory root devcontainer installs PyMuPDF in an isolated
   `/opt/pdf-tools` virtual environment for inspecting the paper's PDF check
   diagrams. The root image could not be built here because Docker/Podman/Buildah

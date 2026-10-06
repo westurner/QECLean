@@ -22,8 +22,12 @@ Implemented in `Layer.lean`:
   each surface edge. Its exact count is
   `6 * n * nX * nZ + 2 * (n * nX + n * nZ + nX * nZ)`.
   Owner and cuboid position jointly identify each edge. Coincident xy/yz
-  crossing edges have equal positions but are distinct qubits. This space is
-  not yet connected to `LayerOutputSize`, the Pauli lifts, or defect coupling.
+  crossing edges have equal positions but are distinct qubits. Owned xy stars
+  and yz plaquettes have weight four, recover the original supports under
+  position projection, and commute for arbitrary cross-layer coordinates.
+  Generic numbered support lifts preserve support and weight and characterize
+  X/Z commutation by even overlap. This space is not yet connected to
+  `LayerOutputSize` or defect coupling.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -86,7 +90,8 @@ Still incomplete:
   yz plaquette with one common edge in a `n = 2, nX = 1, nZ = 2` cuboid.
   Consequently, appending the existing lists unchanged cannot construct a
   stabilizer code. The layer-owned space addresses uncoupled crossing identity
-  only; defect coupling and replacement-aware support transport are still
+  and the owned xy-star/yz-plaquette commutation obstruction; defect coupling
+  and replacement-aware support transport are still
   required before changing the output qubit index.
 - The full figure-defined line- and point-defect checks are not encoded. The
   x/z and interior nontrivial-y templates above are only partial candidates;
@@ -215,3 +220,26 @@ through `3bb1806`. At that checkpoint:
 The full check lists, point-defect supports and replacement rules, output
 CSS/dimension/distance laws, and RG decoder remain incomplete. Preserved `.tmp`
 paper files and unrelated parent-worktree changes were left untouched.
+
+### Follow-On Implementation Loop
+
+Four tested increments advance the construction work:
+
+- Prove the exact two-edge same-cell nontrivial-y overlap and Pauli commutation.
+- Enumerate finite x/z line candidates with exact plaquette applicability,
+  membership, phase-zero CSS type, and weight-four laws.
+- Prove the shared-edge surface assembly obstruction and introduce layer-owned
+  pre-defect edges with cardinality, identity, and coordinate-projection laws.
+- Lift owned xy stars and yz plaquettes, preserving their spatial supports and
+  weight four while proving arbitrary-coordinate cross-layer commutation.
+
+Each increment passed the focused Lean check and
+`lake build QEC.Stabilizer.Codes.Layer` (`3,147` jobs), plus whitespace and
+proof-placeholder audits. With explicit user authorization, this loop used the
+installed pinned Lean `v4.35.0-rc3` toolchain in the Sustainable Factory
+container rather than the otherwise-required standalone QECLean devcontainer.
+
+Final assembly still requires explicit defect coupling and replacement rules
+on the layer-owned qubit space. The old shared-edge lists cannot satisfy the
+required CSS commutation law unchanged. No output-code constructor,
+dimension/distance theorem, or RG decoder is claimed by these increments.

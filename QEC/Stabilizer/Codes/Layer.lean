@@ -340,19 +340,54 @@ noncomputable def layerEdgeEquiv (n nX nZ : ℕ) :
     LayerLatticeEdge n nX nZ ≃ Fin (LayerOutputSize n nX nZ) :=
   Fintype.equivFin _
 
+noncomputable def numberedSupportPauli {Edge : Type*} [DecidableEq Edge]
+    {qubits : ℕ} (numbering : Edge ≃ Fin qubits) (operator : PauliOperator)
+    (support : Finset Edge) : NQubitPauliGroupElement qubits :=
+  NQubitPauliGroupElement.ofOperator (fun qubit =>
+    if numbering.symm qubit ∈ support then operator else PauliOperator.I)
+
+lemma support_numberedSupportPauli {Edge : Type*} [DecidableEq Edge]
+    {qubits : ℕ} (numbering : Edge ≃ Fin qubits) (operator : PauliOperator)
+    (support : Finset Edge) (hne : operator ≠ PauliOperator.I) :
+    NQubitPauliGroupElement.support (numberedSupportPauli numbering operator support) =
+      support.image numbering := by
+  classical
+  change NQubitPauliOperator.support
+    (numberedSupportPauli numbering operator support).operators = support.image numbering
+  ext qubit
+  rw [NQubitPauliOperator.mem_support, Finset.mem_image]
+  change (if numbering.symm qubit ∈ support then operator else PauliOperator.I) ≠
+    PauliOperator.I ↔ ∃ edge ∈ support, numbering edge = qubit
+  constructor
+  · intro hoperator
+    have hmem : numbering.symm qubit ∈ support := by
+      by_contra hnot
+      simp [hnot] at hoperator
+    exact ⟨_, hmem, numbering.apply_symm_apply qubit⟩
+  · rintro ⟨edge, hedge, rfl⟩
+    simpa [hedge] using hne
+
+lemma weight_numberedSupportPauli {Edge : Type*} [DecidableEq Edge]
+    {qubits : ℕ} (numbering : Edge ≃ Fin qubits) (operator : PauliOperator)
+    (support : Finset Edge) (hne : operator ≠ PauliOperator.I) :
+    NQubitPauliGroupElement.weight (numberedSupportPauli numbering operator support) =
+      support.card := by
+  change (NQubitPauliGroupElement.support
+    (numberedSupportPauli numbering operator support)).card = support.card
+  rw [support_numberedSupportPauli numbering operator support hne]
+  exact Finset.card_image_of_injective _ numbering.injective
+
 /-- X-type Pauli check supported on a finite set of cuboid edges. -/
 noncomputable def layerXPauli {n nX nZ : ℕ}
     (support : Finset (LayerLatticeEdge n nX nZ)) :
     NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
-  NQubitPauliGroupElement.ofOperator (fun q =>
-    if (layerEdgeEquiv n nX nZ).symm q ∈ support then PauliOperator.X else PauliOperator.I)
+  numberedSupportPauli (layerEdgeEquiv n nX nZ) PauliOperator.X support
 
 /-- Z-type Pauli check supported on a finite set of cuboid edges. -/
 noncomputable def layerZPauli {n nX nZ : ℕ}
     (support : Finset (LayerLatticeEdge n nX nZ)) :
     NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
-  NQubitPauliGroupElement.ofOperator (fun q =>
-    if (layerEdgeEquiv n nX nZ).symm q ∈ support then PauliOperator.Z else PauliOperator.I)
+  numberedSupportPauli (layerEdgeEquiv n nX nZ) PauliOperator.Z support
 
 /-- The Z-lift's output support is the image of its lattice-edge support. -/
 lemma support_layerZPauli {n nX nZ : ℕ}
@@ -450,20 +485,24 @@ lemma layerXPauli_isXType {n nX nZ : ℕ}
     (if (layerEdgeEquiv n nX nZ).symm q ∈ support then PauliOperator.X else PauliOperator.I)
   split_ifs <;> simp [PauliOperator.IsXType]
 
-lemma layerXPauli_commutes_layerZPauli_iff {n nX nZ : ℕ}
-    (xSupport zSupport : Finset (LayerLatticeEdge n nX nZ)) :
-    layerXPauli xSupport * layerZPauli zSupport =
-        layerZPauli zSupport * layerXPauli xSupport ↔
+lemma numberedSupportPauli_commutes_iff {Edge : Type*} [DecidableEq Edge]
+    {qubits : ℕ} (numbering : Edge ≃ Fin qubits)
+    (xSupport zSupport : Finset Edge) :
+    numberedSupportPauli numbering PauliOperator.X xSupport *
+        numberedSupportPauli numbering PauliOperator.Z zSupport =
+      numberedSupportPauli numbering PauliOperator.Z zSupport *
+        numberedSupportPauli numbering PauliOperator.X xSupport ↔
       Even (xSupport ∩ zSupport).card := by
   classical
   rw [NQubitPauliGroupElement.commutes_iff_even_anticommutes]
   have hset : Finset.univ.filter
       (NQubitPauliGroupElement.anticommutesAt
-        (layerXPauli xSupport).operators (layerZPauli zSupport).operators) =
-      (xSupport ∩ zSupport).image (layerEdgeEquiv n nX nZ) := by
+        (numberedSupportPauli numbering PauliOperator.X xSupport).operators
+        (numberedSupportPauli numbering PauliOperator.Z zSupport).operators) =
+      (xSupport ∩ zSupport).image numbering := by
     ext qubit
-    have hmem : qubit ∈ (xSupport ∩ zSupport).image (layerEdgeEquiv n nX nZ) ↔
-        (layerEdgeEquiv n nX nZ).symm qubit ∈ xSupport ∩ zSupport := by
+    have hmem : qubit ∈ (xSupport ∩ zSupport).image numbering ↔
+        numbering.symm qubit ∈ xSupport ∩ zSupport := by
       simp only [Finset.mem_image]
       constructor
       · rintro ⟨edge, hedge, rfl⟩
@@ -473,16 +512,23 @@ lemma layerXPauli_commutes_layerZPauli_iff {n nX nZ : ℕ}
     rw [hmem]
     simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_inter]
     unfold NQubitPauliGroupElement.anticommutesAt
-    change ((if (layerEdgeEquiv n nX nZ).symm qubit ∈ xSupport then PauliOperator.X
+    change ((if numbering.symm qubit ∈ xSupport then PauliOperator.X
         else PauliOperator.I).mulOp
-        (if (layerEdgeEquiv n nX nZ).symm qubit ∈ zSupport then PauliOperator.Z
+        (if numbering.symm qubit ∈ zSupport then PauliOperator.Z
         else PauliOperator.I)).phasePower =
-      ((if (layerEdgeEquiv n nX nZ).symm qubit ∈ zSupport then PauliOperator.Z
+      ((if numbering.symm qubit ∈ zSupport then PauliOperator.Z
         else PauliOperator.I).mulOp
-        (if (layerEdgeEquiv n nX nZ).symm qubit ∈ xSupport then PauliOperator.X
+        (if numbering.symm qubit ∈ xSupport then PauliOperator.X
         else PauliOperator.I)).phasePower + 2 ↔ _
     split_ifs <;> simp_all [PauliOperator.mulOp]
-  rw [hset, Finset.card_image_of_injective _ (layerEdgeEquiv n nX nZ).injective]
+  rw [hset, Finset.card_image_of_injective _ numbering.injective]
+
+lemma layerXPauli_commutes_layerZPauli_iff {n nX nZ : ℕ}
+    (xSupport zSupport : Finset (LayerLatticeEdge n nX nZ)) :
+    layerXPauli xSupport * layerZPauli zSupport =
+        layerZPauli zSupport * layerXPauli xSupport ↔
+      Even (xSupport ∩ zSupport).card :=
+  numberedSupportPauli_commutes_iff (layerEdgeEquiv n nX nZ) xSupport zSupport
 
 /-- An edge along the x-axis, whose layers are indexed by Z checks. -/
 def layerXEdge {n nX nZ : ℕ} (x : Fin nZ) (y : Fin (n + 1)) (z : Fin (nX + 1)) :
@@ -856,6 +902,99 @@ noncomputable def xySurfaceStarEdges {n nX nZ : ℕ}
     layerXEdge (interiorSucc (m := nZ) x) (interiorSuccVertex (m := n) q) check.castSucc,
     layerYEdge (interiorSuccVertex (m := nZ) x) (interiorCast (m := n) q) check.castSucc,
     layerYEdge (interiorSuccVertex (m := nZ) x) (interiorSucc (m := n) q) check.castSucc}
+
+noncomputable def xyOwnedStarEdges {n nX nZ : ℕ}
+    (check : Fin nX) (xCoord : Fin (nZ - 1)) (yCoord : Fin (n - 1)) :
+    Finset (LayerSurfaceEdge n nX nZ) := by
+  classical
+  exact {Sum.inr (Sum.inl (check, Sum.inl (interiorCast xCoord, interiorSuccVertex yCoord))),
+    Sum.inr (Sum.inl (check, Sum.inl (interiorSucc xCoord, interiorSuccVertex yCoord))),
+    xyLayerYEdge check (interiorSuccVertex xCoord) (interiorCast yCoord),
+    xyLayerYEdge check (interiorSuccVertex xCoord) (interiorSucc yCoord)}
+
+noncomputable def yzOwnedPlaquetteEdges {n nX nZ : ℕ}
+    (check : Fin nZ) (yCoord : Fin n) (zCoord : Fin nX) :
+    Finset (LayerSurfaceEdge n nX nZ) := by
+  classical
+  exact {yzLayerYEdge check yCoord zCoord.castSucc,
+    Sum.inr (Sum.inr (check, Sum.inr (yCoord.succ, zCoord))),
+    yzLayerYEdge check yCoord zCoord.succ,
+    Sum.inr (Sum.inr (check, Sum.inr (yCoord.castSucc, zCoord)))}
+
+lemma xyOwnedStarEdges_position {n nX nZ : ℕ}
+    (check : Fin nX) (xCoord : Fin (nZ - 1)) (yCoord : Fin (n - 1)) :
+    (xyOwnedStarEdges check xCoord yCoord).image layerSurfaceEdgePosition =
+      xySurfaceStarEdges check xCoord yCoord := by
+  classical
+  simp [xyOwnedStarEdges, xySurfaceStarEdges, xyLayerYEdge,
+    layerSurfaceEdgePosition, layerXEdge, layerYEdge]
+
+lemma yzOwnedPlaquetteEdges_position {n nX nZ : ℕ}
+    (check : Fin nZ) (yCoord : Fin n) (zCoord : Fin nX) :
+    (yzOwnedPlaquetteEdges check yCoord zCoord).image layerSurfaceEdgePosition =
+      yzSurfacePlaquetteEdges check yCoord zCoord := by
+  classical
+  simp [yzOwnedPlaquetteEdges, yzSurfacePlaquetteEdges, yzLayerYEdge,
+    layerSurfaceEdgePosition, layerYEdge, layerZEdge]
+
+lemma xyOwnedStarEdges_card {n nX nZ : ℕ}
+    (check : Fin nX) (xCoord : Fin (nZ - 1)) (yCoord : Fin (n - 1)) :
+    (xyOwnedStarEdges check xCoord yCoord).card = 4 := by
+  classical
+  simp [xyOwnedStarEdges, xyLayerYEdge, interiorCast_ne_succ]
+
+lemma yzOwnedPlaquetteEdges_card {n nX nZ : ℕ}
+    (check : Fin nZ) (yCoord : Fin n) (zCoord : Fin nX) :
+    (yzOwnedPlaquetteEdges check yCoord zCoord).card = 4 := by
+  classical
+  simp [yzOwnedPlaquetteEdges, yzLayerYEdge,
+    fin_castSucc_ne_succ, fin_succ_ne_castSucc]
+
+lemma owned_crossing_supports_disjoint {n nX nZ : ℕ}
+    (xCheck : Fin nX) (starX : Fin (nZ - 1)) (starY : Fin (n - 1))
+    (zCheck : Fin nZ) (faceY : Fin n) (faceZ : Fin nX) :
+    Disjoint (xyOwnedStarEdges xCheck starX starY)
+      (yzOwnedPlaquetteEdges zCheck faceY faceZ) := by
+  classical
+  simp [xyOwnedStarEdges, yzOwnedPlaquetteEdges, xyLayerYEdge, yzLayerYEdge,
+    Finset.disjoint_left]
+
+noncomputable def xyOwnedStar {n nX nZ : ℕ}
+    (check : Fin nX) (xCoord : Fin (nZ - 1)) (yCoord : Fin (n - 1)) :
+    NQubitPauliGroupElement (Fintype.card (LayerSurfaceEdge n nX nZ)) := by
+  classical
+  exact numberedSupportPauli (Fintype.equivFin _) PauliOperator.X
+    (xyOwnedStarEdges check xCoord yCoord)
+
+noncomputable def yzOwnedPlaquette {n nX nZ : ℕ}
+    (check : Fin nZ) (yCoord : Fin n) (zCoord : Fin nX) :
+    NQubitPauliGroupElement (Fintype.card (LayerSurfaceEdge n nX nZ)) := by
+  classical
+  exact numberedSupportPauli (Fintype.equivFin _) PauliOperator.Z
+    (yzOwnedPlaquetteEdges check yCoord zCoord)
+
+lemma xyOwnedStar_weight {n nX nZ : ℕ}
+    (check : Fin nX) (xCoord : Fin (nZ - 1)) (yCoord : Fin (n - 1)) :
+    NQubitPauliGroupElement.weight (xyOwnedStar check xCoord yCoord) = 4 := by
+  classical
+  rw [xyOwnedStar, weight_numberedSupportPauli _ _ _ (by decide), xyOwnedStarEdges_card]
+
+lemma yzOwnedPlaquette_weight {n nX nZ : ℕ}
+    (check : Fin nZ) (yCoord : Fin n) (zCoord : Fin nX) :
+    NQubitPauliGroupElement.weight (yzOwnedPlaquette check yCoord zCoord) = 4 := by
+  classical
+  rw [yzOwnedPlaquette, weight_numberedSupportPauli _ _ _ (by decide), yzOwnedPlaquetteEdges_card]
+
+lemma owned_crossing_checks_commute {n nX nZ : ℕ}
+    (xCheck : Fin nX) (starX : Fin (nZ - 1)) (starY : Fin (n - 1))
+    (zCheck : Fin nZ) (faceY : Fin n) (faceZ : Fin nX) :
+    xyOwnedStar xCheck starX starY * yzOwnedPlaquette zCheck faceY faceZ =
+      yzOwnedPlaquette zCheck faceY faceZ * xyOwnedStar xCheck starX starY := by
+  classical
+  rw [xyOwnedStar, yzOwnedPlaquette, numberedSupportPauli_commutes_iff,
+    Finset.disjoint_iff_inter_eq_empty.mp
+      (owned_crossing_supports_disjoint xCheck starX starY zCheck faceY faceZ)]
+  simp
 
 /-- The four edges incident to an interior xy vertex are distinct. -/
 lemma card_xySurfaceStarEdges {n nX nZ : ℕ}
