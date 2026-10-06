@@ -45,8 +45,10 @@ Implemented in `Layer.lean`:
 - Candidate X-star supports and adjacent-face Z-plaquette supports at x/z
   junctions, with first/middle/last orientation choosing the forward data cell
   except at the last incidence. The candidate Paulis are type-correct and have
-  proved weight four; they are not yet organized into the paper's case-specific
-  check lists or replacement rules. The extra x-junction Z plaquette is gated
+  proved weight four. Finite x/z candidate lists now enumerate all indexed
+  stars and applicable plaquettes, with exact membership, phase-zero CSS type,
+  and weight-four laws. They are not final replacement-aware check lists.
+  The extra x-junction Z plaquette is gated
   to first/middle cases, and the extra z-junction Z plaquette to the middle
   case, matching the paper's line-defect descriptions.
 - Interior nontrivial-y cell candidates require two consecutive edges in a
@@ -75,7 +77,7 @@ Still incomplete:
   yet produce the output code.
 - The full figure-defined line- and point-defect checks are not encoded. The
   x/z and interior nontrivial-y templates above are only partial candidates;
-  y cross-commutation, case-indexed line lists, replacement rules, and all 22
+  y cross-commutation, complete line lists, replacement rules, and all 22
   point-defect support families remain to be added to generated check lists.
 - Sector decoders are exhaustive reference algorithms, not efficient
   renormalization-group decoders. The Layer-codes paper does not specify its
@@ -115,7 +117,7 @@ Factory environment. Before starting, check `command -v lean lake rg` and
    the paper (three x-oriented, three z-oriented, and trivial/nontrivial
   y-oriented) into finite edge supports. Initial four-edge x/z star and
   adjacent-face plaquette candidates now have type and weight proofs. Finish
-  the case-indexed lists, y-junction checks, applicability conditions, and
+  the complete lists, y-junction checks, applicability conditions, and
   replacement/incidence lemmas for every family.
 4. **Encode point-defect checks.** The ten bulk and twelve boundary case labels
   are now indexed, along with boundary tags for the extra-plaquette and

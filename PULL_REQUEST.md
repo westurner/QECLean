@@ -113,7 +113,10 @@ explicit line- and point-defect checks (eight line cases, ten bulk point cases,
 and twelve boundary point cases), whose supports are given as lattice diagrams.
 Initial four-edge X-star and adjacent-face Z-plaquette candidates now exist at
 x/z junctions, with type and weight proofs, but they are not yet organized into
-the eight case-specific families or replacement rules. The y-junction
+all eight case-specific families or replacement rules. Finite x/z candidate
+lists enumerate the existing stars and gated plaquettes; exact membership
+laws enforce the incidence gates, and all listed checks have phase-zero CSS
+type and weight four. These are not final replacement-aware lists. The y-junction
 geometry now proves that matched nontrivial segments and their trivial
 complement are disjoint and exhaustive, and the line index includes both for
 point-location detection. The modified y-junction Pauli checks and all

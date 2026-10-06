@@ -1770,6 +1770,110 @@ lemma CSSLayerInput.zJunctionZPlaquette_isZType {n k nX nZ : ℕ}
       (input.zJunctionZPlaquette junction xCoord) :=
   layerZPauli_isZType _
 
+noncomputable def CSSLayerInput.xJunctionXStarCandidates {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) := by
+  classical
+  exact (Finset.univ : Finset (XJunction input × Fin (nZ - 1))).toList.map
+    (fun index => input.xJunctionXStar index.1 index.2)
+
+noncomputable def CSSLayerInput.zJunctionXStarCandidates {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) := by
+  classical
+  exact (Finset.univ : Finset (ZJunction input × Fin (nX - 1))).toList.map
+    (fun index => input.zJunctionXStar index.1 index.2)
+
+noncomputable def CSSLayerInput.xJunctionZPlaquetteCandidates {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) := by
+  classical
+  exact (Finset.univ : Finset (XJunction input × Fin (nZ - 1))).toList.filterMap
+    (fun index => input.xJunctionFirstOrMiddleZPlaquetteCandidate index.1 index.2)
+
+noncomputable def CSSLayerInput.zJunctionZPlaquetteCandidates {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) := by
+  classical
+  exact (Finset.univ : Finset (ZJunction input × Fin (nX - 1))).toList.filterMap
+    (fun index => input.zJunctionMiddleZPlaquetteCandidate index.1 index.2)
+
+lemma CSSLayerInput.mem_xJunctionXStarCandidates {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ)
+    (check : NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :
+    check ∈ input.xJunctionXStarCandidates ↔
+      ∃ junction coord, input.xJunctionXStar junction coord = check := by
+  classical
+  simp [xJunctionXStarCandidates]
+
+lemma CSSLayerInput.mem_zJunctionXStarCandidates {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ)
+    (check : NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :
+    check ∈ input.zJunctionXStarCandidates ↔
+      ∃ junction coord, input.zJunctionXStar junction coord = check := by
+  classical
+  simp [zJunctionXStarCandidates]
+
+lemma CSSLayerInput.mem_xJunctionZPlaquetteCandidates {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ)
+    (check : NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :
+    check ∈ input.xJunctionZPlaquetteCandidates ↔
+      ∃ junction coord,
+        (input.xJunctionPosition junction = .first ∨
+          input.xJunctionPosition junction = .middle) ∧
+        input.xJunctionZPlaquette junction coord = check := by
+  classical
+  simp [xJunctionZPlaquetteCandidates, xJunctionFirstOrMiddleZPlaquetteCandidate]
+
+lemma CSSLayerInput.mem_zJunctionZPlaquetteCandidates {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ)
+    (check : NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :
+    check ∈ input.zJunctionZPlaquetteCandidates ↔
+      ∃ junction coord, input.zJunctionPosition junction = .middle ∧
+        input.zJunctionZPlaquette junction coord = check := by
+  classical
+  simp [zJunctionZPlaquetteCandidates, zJunctionMiddleZPlaquetteCandidate]
+
+noncomputable def CSSLayerInput.xzLineXCheckCandidates {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :=
+  input.xJunctionXStarCandidates ++ input.zJunctionXStarCandidates
+
+noncomputable def CSSLayerInput.xzLineZCheckCandidates {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    List (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :=
+  input.xJunctionZPlaquetteCandidates ++ input.zJunctionZPlaquetteCandidates
+
+lemma CSSLayerInput.xzLineXCheckCandidates_type_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ)
+    (check : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (hcheck : check ∈ input.xzLineXCheckCandidates) :
+    NQubitPauliGroupElement.IsXTypeElement check ∧
+      NQubitPauliGroupElement.weight check = 4 := by
+  rw [xzLineXCheckCandidates, List.mem_append] at hcheck
+  rcases hcheck with hx | hz
+  · obtain ⟨junction, coord, rfl⟩ := (input.mem_xJunctionXStarCandidates check).mp hx
+    exact ⟨input.xJunctionXStar_isXType junction coord,
+      input.xJunctionXStar_weight junction coord⟩
+  · obtain ⟨junction, coord, rfl⟩ := (input.mem_zJunctionXStarCandidates check).mp hz
+    exact ⟨input.zJunctionXStar_isXType junction coord,
+      input.zJunctionXStar_weight junction coord⟩
+
+lemma CSSLayerInput.xzLineZCheckCandidates_type_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ)
+    (check : NQubitPauliGroupElement (LayerOutputSize n nX nZ))
+    (hcheck : check ∈ input.xzLineZCheckCandidates) :
+    NQubitPauliGroupElement.IsZTypeElement check ∧
+      NQubitPauliGroupElement.weight check = 4 := by
+  rw [xzLineZCheckCandidates, List.mem_append] at hcheck
+  rcases hcheck with hx | hz
+  · obtain ⟨junction, coord, _, rfl⟩ := (input.mem_xJunctionZPlaquetteCandidates check).mp hx
+    exact ⟨input.xJunctionZPlaquette_isZType junction coord,
+      input.xJunctionZPlaquette_weight junction coord⟩
+  · obtain ⟨junction, coord, _, rfl⟩ := (input.mem_zJunctionZPlaquetteCandidates check).mp hz
+    exact ⟨input.zJunctionZPlaquette_isZType junction coord,
+      input.zJunctionZPlaquette_weight junction coord⟩
+
 /-- A Y-junction is one matched pair on the intersection of an X and Z check layer. -/
 abbrev YJunctionPairIndex {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ) :=
   Σ x : Fin nX, Σ z : Fin nZ, Fin ((input.xzCheckOverlap x z).card / 2)
