@@ -54,9 +54,10 @@ input CSS code.
 finite stabilizer code, an exhaustive all-Pauli minimum-weight decoder, and
 separate exhaustive X-only and Z-only minimum-weight decoders. Each has a
 conditional correction theorem below half a supplied distance lower bound,
-up to stabilizers and global Pauli phase. `LayerCode` exposes all three.
-These are exact reference decoders, not efficient renormalization-group
-decoders.
+up to stabilizers and global Pauli phase. `LayerCode` exposes all three. The
+Pauli search universe is now proved to have `4^(n + 1)` elements, bounding each
+syndrome candidate set explicitly. These are exact reference decoders, not
+efficient renormalization-group decoders.
 
 ## Compatibility notes
 

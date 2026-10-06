@@ -56,6 +56,9 @@ Implemented in `../Framework/Core/Logical/Decoder.lean`:
 - A proof that a minimum-weight recovery is logically correct for errors below
   half a supplied distance lower bound, up to stabilizer and global Pauli phase.
   The sector decoders have the same conditional correction guarantee.
+- The exhaustive Pauli universe has exactly `4^(n + 1)` elements, and every
+  syndrome candidate set is bounded by that count. This makes the reference
+  decoder's exponential search explicit; it is not an RG decoder.
 
 Still incomplete:
 

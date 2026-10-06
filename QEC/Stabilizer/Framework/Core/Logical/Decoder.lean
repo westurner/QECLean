@@ -39,6 +39,17 @@ private noncomputable instance pauliElementFintype {n : ℕ} :
     Fintype (NQubitPauliGroupElement n) :=
   Fintype.ofEquiv (Fin 4 × (Fin n → PauliOperator)) (pauliElementEquiv n).symm
 
+/-- The exhaustive decoder's candidate universe contains exactly `4^(n+1)` Paulis. -/
+theorem pauliElementFintype_card (n : ℕ) :
+    Fintype.card (NQubitPauliGroupElement n) = 4 ^ (n + 1) := by
+  classical
+  rw [Fintype.card_congr (pauliElementEquiv n)]
+  simp only [Fintype.card_prod, Fintype.card_fin, Fintype.card_pi,
+    Finset.prod_const, Finset.card_univ]
+  have hpauli : Fintype.card PauliOperator = 4 := by decide
+  rw [hpauli]
+  ring
+
 /-- The support of a Pauli product is contained in the union of the supports. -/
 lemma pauliSupport_mul_subset {n : ℕ} (p q : NQubitPauliGroupElement n) :
     NQubitPauliGroupElement.support (p * q) ⊆
@@ -177,6 +188,17 @@ private noncomputable def syndromeCandidates {n k : ℕ} (code : StabilizerCode 
     (target : StabilizerSyndrome code) : Finset (NQubitPauliGroupElement n) := by
   classical
   exact Finset.univ.filter (fun error => stabilizerSyndrome code error = target)
+
+/-- An exhaustive syndrome class has at most `4^(n+1)` Pauli candidates. -/
+theorem syndromeCandidates_card_le_pauliUniverse {n k : ℕ}
+    (code : StabilizerCode n k) (target : StabilizerSyndrome code) :
+    (syndromeCandidates code target).card ≤ 4 ^ (n + 1) := by
+  calc
+    (syndromeCandidates code target).card ≤
+        (Finset.univ : Finset (NQubitPauliGroupElement n)).card :=
+      Finset.card_filter_le _ _
+    _ = Fintype.card (NQubitPauliGroupElement n) := Finset.card_univ
+    _ = 4 ^ (n + 1) := pauliElementFintype_card n
 
 /-- A nonempty finite Pauli set contains an element of minimum weight. -/
 private theorem exists_minimum_weight_in {n : ℕ}
