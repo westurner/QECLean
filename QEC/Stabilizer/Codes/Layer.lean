@@ -1805,6 +1805,33 @@ instance : Fintype LayerBoundaryPointDefectCase where
     intro x
     cases x <;> simp
 
+/-- Boundary point cases that require an extra point-defect plaquette. -/
+def LayerBoundaryPointDefectCase.hasModifiedPlaquette :
+    LayerBoundaryPointDefectCase → Bool
+  | .middleZFrontYZ | .middleZBackYZ => true
+  | _ => false
+
+/-- Boundary point cases that require modified smooth-boundary stars. -/
+def LayerBoundaryPointDefectCase.hasModifiedBoundaryStar :
+    LayerBoundaryPointDefectCase → Bool
+  | .firstXLeftYZ | .firstXRightYZ | .lastXLeftYZ | .lastXRightYZ
+  | .middleXLeftYZ | .middleXRightYZ => true
+  | _ => false
+
+/-- Exactly the two middle-z boundary cases add a point-defect plaquette. -/
+theorem layerBoundaryCasesWithModifiedPlaquette_card :
+    (Finset.univ.filter
+      (fun case : LayerBoundaryPointDefectCase =>
+        LayerBoundaryPointDefectCase.hasModifiedPlaquette case = true)).card = 2 := by
+  decide
+
+/-- Exactly the six x-junction boundary cases modify boundary stars. -/
+theorem layerBoundaryCasesWithModifiedBoundaryStar_card :
+    (Finset.univ.filter
+      (fun case : LayerBoundaryPointDefectCase =>
+        LayerBoundaryPointDefectCase.hasModifiedBoundaryStar case = true)).card = 6 := by
+  decide
+
 /-- The disjoint sum of all ten bulk and twelve boundary point-defect cases. -/
 abbrev LayerPointDefectCase :=
   LayerBulkPointDefectCase ⊕ LayerBoundaryPointDefectCase

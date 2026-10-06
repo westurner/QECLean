@@ -35,7 +35,9 @@ Implemented in `Layer.lean`:
 - Finite indices for the ten bulk and twelve boundary point-defect case labels
   from the paper, with a theorem that the combined taxonomy has 22 cases. The
   indices classify configurations only; they do not define the diagrammed
-  point-check supports.
+  point-check supports. Boundary applicability tags also identify the two
+  middle-z cases with an extra plaquette and the six x-junction cases with
+  modified boundary stars.
 - Candidate X-star supports and adjacent-face Z-plaquette supports at x/z
   junctions, with first/middle/last orientation choosing the forward data cell
   except at the last incidence. The candidate Paulis are type-correct and have
@@ -100,9 +102,10 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   the case-indexed lists, y-junction checks, applicability conditions, and
   replacement/incidence lemmas for every family.
 4. **Encode point-defect checks.** The ten bulk and twelve boundary case labels
-  are now indexed. Translate each into explicit support constructors and
-  state which adjacent line checks are replaced so the final generator list
-  has no duplicates or stale bulk checks.
+  are now indexed, along with boundary tags for the extra-plaquette and
+  modified-star families. Translate each into explicit support constructors
+  and state which adjacent line checks are replaced so the final generator
+  list has no duplicates or stale bulk checks.
 5. **Prove the CSS stabilizer laws.** Assemble one X list and one Z list from
    the surface and defect checks. Prove phase zero, per-generator weight at
    most six, and every X/Z commutation relation. Reuse the existing CSS
