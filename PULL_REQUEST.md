@@ -78,6 +78,14 @@ input CSS code.
   the output capacity bound. A dimension-preserving constructor on this
   carrier needs an explicit domain restriction or a different degenerate
   carrier. The general input interface has not been silently restricted.
+- Choose positive X/Z counts through `LayerConstructionDomain` for the future
+  paper-style constructor, preserving the unrestricted input interface.
+  Inject input qubits into fixed data-layer representatives to derive
+  `n ≤ N` and `k ≤ N`; these do not establish stabilizer rank or dimension.
+- Implement a reflected five-leg bulk z-line X-star shape with exact spatial
+  support, distinct positions, phase-zero X type, and physical weight five.
+  Its incidence applicability, coupling plaquettes, point replacements, and
+  emitted-slot integration remain separate obligations.
 - Build separate same-type surface X/Z stabilizer groups that include those
   standard boundary candidates. Cross-sector commutation with line/point defect
   checks remains unproved because those checks are not yet encoded.
@@ -208,7 +216,14 @@ fixed 36-edge local carrier is claimed without those obligations.
 
 The zero-check domain obstruction is now kernel-checked. Additionally, direct
 inspection of the first/middle z-junction diagrams shows five-leg modified
-stars; the earlier four-edge candidates are not complete replacements.
+stars; the earlier four-edge candidates are not complete replacements. The
+five-leg bulk shape is implemented, but not emitted into the output code.
+The chosen positive-count construction domain has derived capacity bounds;
+it neither changes the input interface nor claims a degenerate fallback.
+The ordinary three-qubit repetition example is outside this positive-count
+domain and is deferred; the first planned constructor examples are
+`[[4,2,2]]`, Shor, and Steane. Independent generator lists must not be padded
+with identity checks to evade the domain condition.
 
 The paper explicitly leaves specialized decoding open, while noting that a
 general renormalization-group decoder is applicable. The exact X/Z sector

@@ -70,6 +70,18 @@ Implemented in `Layer.lean`:
   `CSSLayerInput` domain therefore cannot have a dimension-preserving
   constructor on this carrier: require a nondegenerate construction domain,
   or specify a different carrier/construction for degenerate inputs.
+- `LayerConstructionDomain` chooses positive X/Z layer counts for the future
+  paper-style constructor while keeping `CSSLayerInput` unrestricted.
+  `dataLayerPhysicalEdge` injects input qubits into fixed data-owned edges,
+  proving `n ≤ N` and hence `k ≤ N` on that domain. These are capacity bounds,
+  not encoded-dimension or independence proofs. A degenerate fallback is not
+  implemented.
+- `zLineFiveLegXStar` is a bulk local shape with the four xz-star legs and
+  one oriented yz-owned y leg; its reflected form reverses that leg. Spatial
+  projection, injectivity of its five positions, exact physical weight five,
+  and phase-zero X type are proved. The shape is not yet an emitted line
+  replacement: applicability, coupling plaquettes, termination, point cases,
+  and obsolete-slot suppression remain unproved.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -177,11 +189,10 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   coupling qubits, truncated layers, and superlattice spacing `c`, before
   replacing `LayerOutputSize`. These normalization laws alone do not prove
   that the convention realizes the paper's code.
-  Resolve the proved zero-check capacity obstruction before a total
-  constructor is promised: restrict its construction domain or define a
-  separate degenerate geometry. Do not silently add count hypotheses to
-  `CSSLayerInput` or pretend the existing carrier has capacity for positive
-  `k` when both check counts vanish.
+  The zero-check capacity obstruction is resolved at the contract boundary:
+  the future paper-style constructor takes `LayerConstructionDomain` (both
+  layer counts positive), with derived `n ≤ N` and `k ≤ N` bounds. Keep the
+  general input type unchanged and do not promise a degenerate fallback.
 2. **Local legs and boundary rules.** Twelve bulk half-star leg slots and their
   three surface-star projection laws are implemented, along with normalized
   X-star type and six-leg weight bounds. Four-leg planar face combinators,
@@ -200,6 +211,9 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   nontrivial-y matching, but do not regard the shared-edge candidate lists as
   final physical checks. Distinguish geometric union of legs from Pauli
   multiplication: coincident factors in a product cancel modulo two.
+  A reflected five-leg bulk z-line X-star shape now has exact projection,
+  type, and normalized weight laws. Connect it to actual incidence/termination
+  gates and compatible Z checks before treating it as a replacement template.
 4. **Point templates and total slots.** Factor the ten bulk and twelve
   boundary cases through the local leg/face combinators. Implement total
   vertex/cell classification and dependent star/plaquette slots so each
@@ -232,8 +246,11 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   not follow from the paper's asymptotic bound without those proofs. Reserve
   `HasCodeDistance` for separately proved exact finite instances.
 8. **Examples and decoding.** Validate the complete physical-edge constructor
-  first on 3-qubit repetition and `[[4,2,2]]`, then Shor and Steane, and build
-  the umbrella import. Retain exhaustive decoders as small-instance references.
+  first on `[[4,2,2]]`, then Shor and Steane, and build the umbrella import.
+  The ordinary 3-qubit repetition input has an empty CSS check sector, so it
+  is outside `LayerConstructionDomain`; defer that example to an explicitly
+  implemented degenerate construction, rather than padding independent
+  generator lists with identity checks. Retain exhaustive decoders as small-instance references.
   RG remains separate: supply cluster geometry and local topological-order/
   annihilation contracts, then use syndrome XOR for staged residual updates.
 
@@ -335,11 +352,16 @@ coupling supports, and the complete line/point case table remain outstanding.
 
 The subsequent domain regression proves that both zero check counts give an
 empty physical carrier and that positive logical capacity then cannot hold.
-Choosing a restricted construction domain versus a separate degenerate
-carrier remains a required contract decision. The first/middle z-junction
+The future paper-style constructor uses an explicit positive-count domain;
+its input-qubit injection proves the capacity bounds without a certificate.
+No degenerate fallback was added. The first/middle z-junction
 diagrams (pages 33/34 of `TikzFigures.pdf`) were inspected: their displayed
 modified stars have five legs, so the existing four-edge candidates must not
 be emitted as complete line templates.
+
+The corresponding five-leg bulk shape and its reflection are now implemented
+with exact spatial projection, physical weight five, and phase-zero X type.
+It is still a local primitive, not a complete case classifier or check list.
 
 Focused Lean checks and the Layer build (`3,147` jobs) pass, with the existing
 linter warnings unchanged. The parent documentation build also succeeds with

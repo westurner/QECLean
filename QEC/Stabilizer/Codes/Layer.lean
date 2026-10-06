@@ -1945,6 +1945,35 @@ lemma CSSLayerInput.no_physical_capacity_without_check_layers {n k : ℕ}
   rw [input.card_physicalEdge_no_check_layers]
   omega
 
+structure LayerConstructionDomain (nX nZ : ℕ) : Prop where
+  xLayers_pos : 0 < nX
+  zLayers_pos : 0 < nZ
+
+def CSSLayerInput.dataLayerPhysicalEdge {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (domain : LayerConstructionDomain nX nZ)
+    (qubit : Fin n) : LayerPhysicalEdge input :=
+  ⟨Sum.inl (qubit, Sum.inl (⟨0, domain.zLayers_pos⟩, 0)), rfl⟩
+
+lemma CSSLayerInput.dataLayerPhysicalEdge_injective {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (domain : LayerConstructionDomain nX nZ) :
+    Function.Injective (input.dataLayerPhysicalEdge domain) := by
+  intro first second heq
+  have howner := congrArg
+    (fun edge : LayerPhysicalEdge input => layerSurfaceEdgeOwner edge.val) heq
+  simpa [dataLayerPhysicalEdge, layerSurfaceEdgeOwner] using howner
+
+lemma CSSLayerInput.card_physicalEdge_ge_input {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (domain : LayerConstructionDomain nX nZ) :
+    n ≤ Fintype.card (LayerPhysicalEdge input) := by
+  have hcard := Fintype.card_le_of_injective _
+    (input.dataLayerPhysicalEdge_injective domain)
+  simpa only [Fintype.card_fin] using hcard
+
+lemma CSSLayerInput.physical_logical_capacity {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (domain : LayerConstructionDomain nX nZ) :
+    k ≤ Fintype.card (LayerPhysicalEdge input) :=
+  input.logicalQubits_le_physical.trans (input.card_physicalEdge_ge_input domain)
+
 noncomputable def CSSLayerInput.physicalEdge {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (edge : LayerSurfaceEdge n nX nZ) :
     LayerPhysicalEdge input :=
@@ -1962,6 +1991,16 @@ lemma CSSLayerInput.physicalEdge_eq_iff {n k nX nZ : ℕ}
     input.physicalEdge first = input.physicalEdge second ↔
       input.canonDefectEdge first = input.canonDefectEdge second :=
   Subtype.ext_iff
+
+lemma CSSLayerInput.physicalEdge_injective_of_position {n k nX nZ : ℕ} {α : Type*}
+    (input : CSSLayerInput n k nX nZ) (locate : α → LayerSurfaceEdge n nX nZ)
+    (hposition : Function.Injective (fun value => layerSurfaceEdgePosition (locate value))) :
+    Function.Injective (fun value => input.physicalEdge (locate value)) := by
+  intro first second heq
+  apply hposition
+  have hcanon := (input.physicalEdge_eq_iff (locate first) (locate second)).mp heq
+  have hspatial := congrArg layerSurfaceEdgePosition hcanon
+  simpa only [input.canonDefectEdge_position] using hspatial
 
 lemma CSSLayerInput.physicalEdge_injective_of_owner_eq {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (first second : LayerSurfaceEdge n nX nZ)
@@ -2234,6 +2273,70 @@ lemma CSSLayerInput.localXStar_isXType {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (vertex : LayerInteriorStarVertex n nX nZ)
     (legs : Finset LayerHalfStarLeg) :
     NQubitPauliGroupElement.IsXTypeElement (input.localXStar vertex legs) := by
+  classical
+  exact input.physicalXPauli_isXType _
+
+def layerZLineFiveLegEdge {n nX nZ : ℕ} (vertex : LayerInteriorStarVertex n nX nZ)
+    (isLast : Bool) (leg : Fin 5) : LayerSurfaceEdge n nX nZ :=
+  match leg.val with
+  | 0 => layerHalfStarEdge vertex (Sum.inl 0)
+  | 1 => layerHalfStarEdge vertex (Sum.inl 1)
+  | 2 => layerHalfStarEdge vertex (Sum.inl 2)
+  | 3 => layerHalfStarEdge vertex (Sum.inl 3)
+  | _ => layerHalfStarEdge vertex (Sum.inr (Sum.inr (if isLast then 0 else 1)))
+
+lemma layerZLineFiveLegEdge_position_injective {n nX nZ : ℕ}
+    (vertex : LayerInteriorStarVertex n nX nZ) (isLast : Bool) :
+    Function.Injective (fun leg => layerSurfaceEdgePosition
+      (layerZLineFiveLegEdge vertex isLast leg)) := by
+  intro first second heq
+  fin_cases first <;> fin_cases second <;> cases isLast <;>
+    simp_all [layerZLineFiveLegEdge, layerHalfStarEdge, layerSurfaceEdgePosition,
+      yzLayerYEdge, interiorCast_ne_succ, interiorSucc_ne_cast]
+
+lemma layerZLineFiveLegEdge_position {n nX nZ : ℕ}
+    (vertex : LayerInteriorStarVertex n nX nZ) (isLast : Bool) :
+    (by
+      classical
+      exact (Finset.univ : Finset (Fin 5)).image
+          (fun leg => layerSurfaceEdgePosition (layerZLineFiveLegEdge vertex isLast leg)) =
+        xzSurfaceStarEdges (interiorSucc vertex.yCell) vertex.xCell vertex.zCell ∪
+          {layerYEdge (interiorSuccVertex vertex.xCell)
+            (if isLast then interiorCast vertex.yCell else interiorSucc vertex.yCell)
+            (interiorSuccVertex vertex.zCell)}) := by
+  classical
+  have hlegs : (Finset.univ : Finset (Fin 5)) = {0, 1, 2, 3, 4} := by decide
+  rw [hlegs]
+  ext edge
+  cases isLast <;>
+    simp [layerZLineFiveLegEdge, layerHalfStarEdge, layerSurfaceEdgePosition,
+      xzSurfaceStarEdges, yzLayerYEdge, layerXEdge, layerYEdge, layerZEdge,
+      interiorSuccVertex]
+
+noncomputable def CSSLayerInput.zLineFiveLegXStar {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (vertex : LayerInteriorStarVertex n nX nZ)
+    (isLast : Bool) : NQubitPauliGroupElement (Fintype.card (LayerPhysicalEdge input)) := by
+  classical
+  exact input.physicalXPauli (Finset.univ.image (layerZLineFiveLegEdge vertex isLast))
+
+lemma CSSLayerInput.zLineFiveLegXStar_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (vertex : LayerInteriorStarVertex n nX nZ)
+    (isLast : Bool) :
+    NQubitPauliGroupElement.weight (input.zLineFiveLegXStar vertex isLast) = 5 := by
+  classical
+  rw [zLineFiveLegXStar, physicalXPauli_weight]
+  simp only [physicalSupport, Finset.image_image]
+  change ((Finset.univ : Finset (Fin 5)).image
+    (fun leg => input.physicalEdge (layerZLineFiveLegEdge vertex isLast leg))).card = 5
+  rw [Finset.card_image_of_injective _
+    (input.physicalEdge_injective_of_position (layerZLineFiveLegEdge vertex isLast)
+      (layerZLineFiveLegEdge_position_injective vertex isLast))]
+  simp
+
+lemma CSSLayerInput.zLineFiveLegXStar_isXType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (vertex : LayerInteriorStarVertex n nX nZ)
+    (isLast : Bool) :
+    NQubitPauliGroupElement.IsXTypeElement (input.zLineFiveLegXStar vertex isLast) := by
   classical
   exact input.physicalXPauli_isXType _
 
