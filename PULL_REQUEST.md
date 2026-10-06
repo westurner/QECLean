@@ -57,7 +57,9 @@ conditional correction theorem below half a supplied distance lower bound,
 up to stabilizers and global Pauli phase. `LayerCode` exposes all three. The
 Pauli search universe is now proved to have `4^(n + 1)` elements, bounding each
 syndrome candidate set explicitly. These are exact reference decoders, not
-efficient renormalization-group decoders.
+efficient renormalization-group decoders. The syndrome of a Pauli product is
+also proved to be the pointwise XOR of the factor syndromes, establishing the
+algebraic update law needed by a future RG implementation.
 
 ## Compatibility notes
 

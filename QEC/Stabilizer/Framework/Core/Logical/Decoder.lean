@@ -1,6 +1,7 @@
 import Mathlib.Tactic
 import QEC.Stabilizer.Framework.Core.CSS.CSSPredicates
 import QEC.Stabilizer.Framework.Core.Logical.CodeDistance
+import QEC.Stabilizer.Foundations.BinarySymplectic.SymplecticInner
 
 /-!
 # Generic Minimum-Weight Decoder
@@ -151,6 +152,68 @@ noncomputable def stabilizerSyndrome {n k : ℕ} (code : StabilizerCode n k)
   classical
   exact fun i => decide
     (NQubitPauliGroupElement.Anticommute (code.generatorsList.get i) error)
+
+/-- The single-qubit symplectic product is additive in its right argument. -/
+private lemma symplecticProductSingle_mulOp_right
+    (left first second : PauliOperator) :
+    PauliOperator.symplecticProductSingle left
+        (first.mulOp second).operator =
+      PauliOperator.symplecticProductSingle left first +
+        PauliOperator.symplecticProductSingle left second := by
+  cases left <;> cases first <;> cases second <;> decide
+
+/-- The symplectic inner product is additive in the right operator argument. -/
+private lemma symplecticInner_mulOp_right {n : ℕ}
+    (left first second : NQubitPauliOperator n) :
+    NQubitPauliOperator.symplecticInner left
+        (NQubitPauliGroupElement.mulOp first second).operators =
+      NQubitPauliOperator.symplecticInner left first +
+        NQubitPauliOperator.symplecticInner left second := by
+  classical
+  unfold NQubitPauliOperator.symplecticInner
+  calc
+    (Finset.univ : Finset (Fin n)).sum (fun i =>
+        PauliOperator.symplecticProductSingle (left i)
+          ((NQubitPauliGroupElement.mulOp first second).operators i)) =
+      (Finset.univ : Finset (Fin n)).sum (fun i =>
+        PauliOperator.symplecticProductSingle (left i) (first i) +
+          PauliOperator.symplecticProductSingle (left i) (second i)) := by
+        apply Finset.sum_congr rfl
+        intro i hi
+        exact symplecticProductSingle_mulOp_right (left i) (first i) (second i)
+    _ = _ := Finset.sum_add_distrib
+
+/-- The syndrome of a product is the bitwise XOR of the factor syndromes. -/
+theorem stabilizerSyndrome_mul {n k : ℕ} (code : StabilizerCode n k)
+    (first second : NQubitPauliGroupElement n) :
+    stabilizerSyndrome code (first * second) = fun i =>
+      Bool.xor (stabilizerSyndrome code first i)
+        (stabilizerSyndrome code second i) := by
+  funext i
+  change decide (NQubitPauliGroupElement.Anticommute
+      (code.generatorsList.get i) (first * second)) =
+    Bool.xor
+      (decide (NQubitPauliGroupElement.Anticommute
+        (code.generatorsList.get i) first))
+      (decide (NQubitPauliGroupElement.Anticommute
+        (code.generatorsList.get i) second))
+  have hsymplectic : NQubitPauliOperator.symplecticInner
+      (code.generatorsList.get i).operators (first * second).operators =
+      NQubitPauliOperator.symplecticInner
+        (code.generatorsList.get i).operators first.operators +
+        NQubitPauliOperator.symplecticInner
+          (code.generatorsList.get i).operators second.operators := by
+    change NQubitPauliOperator.symplecticInner
+        (code.generatorsList.get i).operators
+        (NQubitPauliGroupElement.mulOp first.operators second.operators).operators = _
+    exact symplecticInner_mulOp_right _ _ _
+  simp only [NQubitPauliOperator.anticommutes_iff_symplectic_inner_one]
+  rw [hsymplectic]
+  have hxor : ∀ a b : ZMod 2,
+      decide (a + b = 1) = Bool.xor (decide (a = 1)) (decide (b = 1)) := by
+    intro a b
+    fin_cases a <;> fin_cases b <;> decide
+  exact hxor _ _
 
 /-- The product of two errors with the same syndrome centralizes the code. -/
 private theorem same_syndrome_product_mem_centralizer {n k : ℕ}
