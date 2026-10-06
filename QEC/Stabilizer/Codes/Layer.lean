@@ -1248,6 +1248,101 @@ lemma CSSLayerInput.xzPairYEdges_nonempty {n k nX nZ : ℕ}
   · simp [edge]
   · simpa [edge] using hlt
 
+/-- A local nontrivial-y check cell whose two consecutive y-edges lie in a matched segment. -/
+structure NontrivialYJunctionCellIndex {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) where
+  xCheck : Fin nX
+  zCheck : Fin nZ
+  pair : Fin ((input.xzCheckOverlap xCheck zCheck).card / 2)
+  yCell : Fin (n - 1)
+  firstEdge_mem : interiorCast yCell ∈ input.xzPairYEdges xCheck zCheck pair
+  secondEdge_mem : interiorSucc yCell ∈ input.xzPairYEdges xCheck zCheck pair
+
+/-- Mixed four-edge X star along the interior of a nontrivial y junction. -/
+noncomputable def CSSLayerInput.nontrivialYJunctionXStarEdges
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    Finset (LayerLatticeEdge n nX nZ) := by
+  classical
+  exact {layerXEdge cell.zCheck (interiorSuccVertex cell.yCell) cell.xCheck.castSucc,
+    layerYEdge cell.zCheck.castSucc (interiorCast cell.yCell) cell.xCheck.castSucc,
+    layerYEdge cell.zCheck.castSucc (interiorSucc cell.yCell) cell.xCheck.castSucc,
+    layerZEdge cell.zCheck.castSucc (interiorSuccVertex cell.yCell) cell.xCheck}
+
+/-- Augmented five-edge Z plaquette along the interior of a nontrivial y junction. -/
+noncomputable def CSSLayerInput.nontrivialYJunctionZPlaquetteEdges
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    Finset (LayerLatticeEdge n nX nZ) :=
+  insert (layerYEdge cell.zCheck.castSucc (interiorSucc cell.yCell) cell.xCheck.succ)
+    (yzSurfacePlaquetteEdges cell.zCheck (interiorCast cell.yCell) cell.xCheck)
+
+/-- The local nontrivial-y X star has four distinct edges. -/
+lemma CSSLayerInput.nontrivialYJunctionXStarEdges_card
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    (input.nontrivialYJunctionXStarEdges cell).card = 4 := by
+  classical
+  simp [nontrivialYJunctionXStarEdges, layerXEdge, layerYEdge, layerZEdge,
+    interiorCast_ne_succ, interiorSucc_ne_cast]
+
+/-- The augmented local nontrivial-y Z plaquette has five distinct edges. -/
+lemma CSSLayerInput.nontrivialYJunctionZPlaquetteEdges_card
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    (input.nontrivialYJunctionZPlaquetteEdges cell).card = 5 := by
+  classical
+  rw [nontrivialYJunctionZPlaquetteEdges]
+  have hnew :
+      layerYEdge cell.zCheck.castSucc (interiorSucc cell.yCell) cell.xCheck.succ ∉
+        yzSurfacePlaquetteEdges cell.zCheck (interiorCast cell.yCell) cell.xCheck := by
+    simp [yzSurfacePlaquetteEdges, layerYEdge, layerZEdge,
+      interiorCast_ne_succ, interiorSucc_ne_cast]
+  rw [Finset.card_insert_of_notMem hnew, card_yzSurfacePlaquetteEdges]
+
+/-- X-Pauli candidate at an interior nontrivial-y junction cell. -/
+noncomputable def CSSLayerInput.nontrivialYJunctionXStarCandidate
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
+  layerXPauli (input.nontrivialYJunctionXStarEdges cell)
+
+/-- Z-Pauli candidate at an interior nontrivial-y junction cell. -/
+noncomputable def CSSLayerInput.nontrivialYJunctionZPlaquetteCandidate
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
+  layerZPauli (input.nontrivialYJunctionZPlaquetteEdges cell)
+
+lemma CSSLayerInput.nontrivialYJunctionXStarCandidate_weight
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    NQubitPauliGroupElement.weight (input.nontrivialYJunctionXStarCandidate cell) = 4 := by
+  rw [nontrivialYJunctionXStarCandidate, weight_layerXPauli,
+    nontrivialYJunctionXStarEdges_card]
+
+lemma CSSLayerInput.nontrivialYJunctionZPlaquetteCandidate_weight
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    NQubitPauliGroupElement.weight
+      (input.nontrivialYJunctionZPlaquetteCandidate cell) = 5 := by
+  rw [nontrivialYJunctionZPlaquetteCandidate, weight_layerZPauli,
+    nontrivialYJunctionZPlaquetteEdges_card]
+
+lemma CSSLayerInput.nontrivialYJunctionXStarCandidate_isXType
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    NQubitPauliGroupElement.IsXTypeElement
+      (input.nontrivialYJunctionXStarCandidate cell) :=
+  layerXPauli_isXType _
+
+lemma CSSLayerInput.nontrivialYJunctionZPlaquetteCandidate_isZType
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    NQubitPauliGroupElement.IsZTypeElement
+      (input.nontrivialYJunctionZPlaquetteCandidate cell) :=
+  layerZPauli_isZType _
+
 /-- The y-directed defect segment for a matched X/Z overlap pair. -/
 noncomputable def CSSLayerInput.xzPairYJunctionEdges {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (x : Fin nX) (z : Fin nZ)

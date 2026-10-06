@@ -38,6 +38,10 @@ Implemented in `Layer.lean`:
   proved weight four; they are not yet organized into the paper's case-specific
   check lists or replacement rules. The extra z-junction Z plaquette is gated
   to the middle case, matching the paper's line-defect description.
+- Interior nontrivial-y cell candidates require two consecutive edges in a
+  matched segment. Their X/Z lifts are type-correct with weights four and five;
+  their cross-sector overlap has not been proved even, so they remain outside
+  the generated check lists.
 
 Implemented in `../Framework/Core/Logical/Decoder.lean`:
 
@@ -52,10 +56,9 @@ Still incomplete:
 - `LayerCode.outputCode` is still an input certificate; the CSS input does not
   yet produce the output code.
 - The full figure-defined line- and point-defect checks are not encoded. The
-  x/z star and plaquette templates above are only partial line candidates; the
-  modified Pauli checks for nontrivial y-junctions, case-indexed line lists,
-  replacement rules, and all 22 point-defect families remain to be added to
-  generated check lists.
+  x/z and interior nontrivial-y templates above are only partial candidates;
+  y cross-commutation, case-indexed line lists, replacement rules, and all 22
+  point-defect families remain to be added to generated check lists.
 - Sector decoders are exhaustive reference algorithms, not efficient
   renormalization-group decoders. The Layer-codes paper does not specify its
   suggested specialized decoders.
