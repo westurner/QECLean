@@ -123,54 +123,71 @@ Do not validate this Lean development with host tools from the Sustainable
 Factory environment. Before starting, check `command -v lean lake rg` and
 `lean --version`; the project toolchain is recorded in `lean-toolchain`.
 
-1. **Reconcile the lattice model.** Compare `LayerLatticeEdge`, its exact
-   cardinality, axis conventions, and boundary coordinates against the paper's
-   lattice model. Record the relationship between the finite edge count and
-   the paper's scaling equation before calling this the paper's exact output
-  qubit count. The shared-edge crossing regression is now proved and the
-  pre-defect layer-owned edge space is implemented. Connect that space to
-  explicit defect coupling and superlattice spacing rather than identifying
-  coincident edges merely because their coordinates agree. The paper's
-  physical-qubit scaling discussion uses a spacing constant `c`; neither
-  current finite count is an exact paper-output count.
-2. **Reconcile surface checks with defects.** Rough/smooth boundary supports
-  and their cardinality laws are implemented. Confirm which ordinary surface
-  checks must be omitted or replaced where line defects meet those boundaries.
-3. **Encode line-defect checks.** Translate all eight line-junction cases from
-   the paper (three x-oriented, three z-oriented, and trivial/nontrivial
-  y-oriented) into finite edge supports. Initial four-edge x/z star and
-  adjacent-face plaquette candidates now have type and weight proofs. Finish
-  the complete lists, y-junction checks, applicability conditions, and
-  replacement/incidence lemmas for every family.
-4. **Encode point-defect checks.** The ten bulk and twelve boundary case labels
-  are now indexed, along with boundary tags for the extra-plaquette and
-  modified-star families. Translate each into explicit support constructors
-  and state which adjacent line checks are replaced so the final generator
-  list has no duplicates or stale bulk checks.
-5. **Prove the CSS stabilizer laws.** Assemble one X list and one Z list from
-   the surface and defect checks. Prove phase zero, per-generator weight at
-   most six, and every X/Z commutation relation. Reuse the existing CSS
-   no-`-I` and homogeneous-type lemmas where their hypotheses apply.
-6. **Prove code dimension and construct the code.** Prove generator
-   independence and `generatorsList.length = outputN - k`. Construct logical X/Z
-   representatives from the input code and prove centralizer membership,
-   anticommutation, and cross-logical commutation. Only after these obligations
-   are discharged should `LayerCode.outputCode` become a definition derived
-   from the check list rather than a supplied certificate.
-7. **Prove the distance statement at the right strength.** The paper gives
-   asymptotic lower bounds for families, not an exact distance for every finite
-   input. First derive a lower-bound theorem with explicit hypotheses; reserve
-   `HasCodeDistance` for concrete instances where an exact witness and exact
-   minimum are proved.
-8. **Connect and test decoding.** Keep the exhaustive general and sector
-  decoders as correctness references for small finite examples. Select and
-  prove an efficient Layer-specific decoder separately; the paper leaves this
-  algorithm open. For an RG implementation, first supply cluster geometry and
-  local topological-order/annihilation contracts, then use the syndrome-XOR law
-  to justify staged residual updates. Test the full constructor on the
-  3-qubit repetition,
-  `[[4,2,2]]`, Shor, and Steane examples after their defect supports are
-  available.
+1. **Canonical physical edges.** Use `LayerSurfaceEdge` as the owned ambient
+  geometry and cuboid coordinates only for spatial location. The proposed
+  `canonDefectEdge` convention sends active xy x-edges and yz z-edges to their
+  data-layer copies, and matched yz y-edges to their xy copies. Idempotence,
+  position preservation, active/inactive gates, upper-boundary preservation,
+  and surjection onto the fixed-point subtype `LayerPhysicalEdge` are proved.
+  The exact count is the owned-edge count minus `removedDefectEdges.card`.
+  Verify this convention against every paper diagram, including any added
+  coupling qubits, truncated layers, and superlattice spacing `c`, before
+  replacing `LayerOutputSize`. These normalization laws alone do not prove
+  that the convention realizes the paper's code.
+2. **Local legs and boundary rules.** Define vertex-centered half-star legs
+  and face-centered plaquette supports in owned coordinates. Specify the
+  actual terminated direction for first/last incidences from the diagrams;
+  do not infer it from the junction's axis name. Handle the existing `single`
+  incidence case and degenerate dimensions explicitly. Record which surface
+  slots survive at boundaries and defects.
+3. **Eight line templates.** Translate all eight paper line cases into local
+  owned supports, normalize them onto physical edges, and prove their
+  applicability and exact support laws. Reuse existing x/z gates and
+  nontrivial-y matching, but do not regard the shared-edge candidate lists as
+  final physical checks. Distinguish geometric union of legs from Pauli
+  multiplication: coincident factors in a product cancel modulo two.
+4. **Point templates and total slots.** Factor the ten bulk and twelve
+  boundary cases through the local leg/face combinators. Implement total
+  vertex/cell classification and dependent star/plaquette slots so each
+  location emits its replacement checks, never both old and new slots.
+  Classification is not yet implemented. Prove slot coverage, exclusion of
+  stale checks, and support uniqueness separately; pattern matching does not
+  automatically prevent different slots from yielding equal supports.
+5. **Local CSS verification.** Lift normalized supports to phase-zero X/Z
+  checks and prove weight at most six. Prove distant supports disjoint and
+  enumerate compatible adjacent vertex/cell neighborhoods. Choose a finite
+  local carrier large enough for boundary and coupling qubits; 36 slots is
+  not established. Prove each embedding injective on the actual normalized
+  support and verify even overlap using kernel `decide`. Gluing can change
+  overlap parity, so pre-gluing commutation cannot simply be transported.
+  Then derive global cross-commutation and exclusion of `-I`.
+6. **Rank, dimension, and logical lifts.** Count physical qubits and emitted
+  slots, track local replacement deltas, and prove rank/independence; an Euler
+  count of checks alone does not establish encoded dimension. Prove a pivot
+  family exists with a consistent triangular orientation, or use the input
+  rank and a chain-complex argument where sparse pivots do not exist. Dress
+  input logical strings via even crossing pairings and prove centralizer,
+  anticommutation, and cross-logical laws. Establish CSS-sector input logical
+  representatives rather than assuming arbitrary logical operators are pure
+  X or Z. Only then construct `LayerCode.outputCode` from the generated checks.
+7. **Slice-based distance.** Define disjoint slice projections, prove their
+  stabilizer invariance, and prove that a nontrivial output logical class has
+  nontrivial input projections on enough slices. State spacing, boundary,
+  nonzero-weight, and slice-multiplicity hypotheses explicitly before deriving
+  a finite lower bound. The proposed floor formula with coefficient one does
+  not follow from the paper's asymptotic bound without those proofs. Reserve
+  `HasCodeDistance` for separately proved exact finite instances.
+8. **Examples and decoding.** Validate the complete physical-edge constructor
+  first on 3-qubit repetition and `[[4,2,2]]`, then Shor and Steane, and build
+  the umbrella import. Retain exhaustive decoders as small-instance references.
+  RG remains separate: supply cluster geometry and local topological-order/
+  annihilation contracts, then use syndrome XOR for staged residual updates.
+
+Commit each validated increment in this order: canonical normalization;
+local templates; total slots; local/global CSS; rank and logical lifts;
+slice distance and examples. Keep every checkpoint buildable and mark a step
+complete only when its stated obligations are proved, not when a record stores
+them as assumptions.
 
 ## Definition of Done
 

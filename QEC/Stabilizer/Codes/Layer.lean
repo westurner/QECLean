@@ -1750,6 +1750,183 @@ def CSSLayerInput.zJunctionEdges {n k nX nZ : ℕ}
   Finset.univ.image (fun zCoord : Fin nX =>
     layerZEdge junction.1.1.castSucc junction.1.2.castSucc zCoord)
 
+noncomputable def CSSLayerInput.canonDefectEdge {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    LayerSurfaceEdge n nX nZ → LayerSurfaceEdge n nX nZ
+  | Sum.inl edge => Sum.inl edge
+  | Sum.inr (Sum.inl (check, Sum.inl (xCoord, yCoord))) =>
+      if hdata : yCoord.val < n then
+        let qubit : Fin n := ⟨yCoord.val, hdata⟩
+        if input.xCheck check qubit = 1 then
+          Sum.inl (qubit, Sum.inl (xCoord, check.castSucc))
+        else Sum.inr (Sum.inl (check, Sum.inl (xCoord, yCoord)))
+      else Sum.inr (Sum.inl (check, Sum.inl (xCoord, yCoord)))
+  | Sum.inr (Sum.inl (check, Sum.inr edge)) =>
+      Sum.inr (Sum.inl (check, Sum.inr edge))
+  | Sum.inr (Sum.inr (check, Sum.inl (yCoord, zCoord))) =>
+      if hx : zCoord.val < nX then
+        let xCheck : Fin nX := ⟨zCoord.val, hx⟩
+        if layerYEdge check.castSucc yCoord xCheck.castSucc ∈
+            input.xzNontrivialYJunctionEdges xCheck check then
+          xyLayerYEdge xCheck check.castSucc yCoord
+        else Sum.inr (Sum.inr (check, Sum.inl (yCoord, zCoord)))
+      else Sum.inr (Sum.inr (check, Sum.inl (yCoord, zCoord)))
+  | Sum.inr (Sum.inr (check, Sum.inr (yCoord, zCoord))) =>
+      if hdata : yCoord.val < n then
+        let qubit : Fin n := ⟨yCoord.val, hdata⟩
+        if input.zCheck check qubit = 1 then
+          Sum.inl (qubit, Sum.inr (check.castSucc, zCoord))
+        else Sum.inr (Sum.inr (check, Sum.inr (yCoord, zCoord)))
+      else Sum.inr (Sum.inr (check, Sum.inr (yCoord, zCoord)))
+
+lemma CSSLayerInput.canonDefectEdge_idempotent {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (edge : LayerSurfaceEdge n nX nZ) :
+    input.canonDefectEdge (input.canonDefectEdge edge) = input.canonDefectEdge edge := by
+  classical
+  rcases edge with edge | (⟨check, edge | edge⟩ | ⟨check, edge | edge⟩)
+  · rfl
+  · rcases edge with ⟨xCoord, yCoord⟩
+    simp only [canonDefectEdge]
+    split_ifs <;> simp_all
+  · rfl
+  · rcases edge with ⟨yCoord, zCoord⟩
+    simp only [canonDefectEdge]
+    split_ifs <;> simp_all [xyLayerYEdge]
+  · rcases edge with ⟨yCoord, zCoord⟩
+    simp only [canonDefectEdge]
+    split_ifs <;> simp_all
+
+lemma CSSLayerInput.canonDefectEdge_position {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (edge : LayerSurfaceEdge n nX nZ) :
+    layerSurfaceEdgePosition (input.canonDefectEdge edge) =
+      layerSurfaceEdgePosition edge := by
+  classical
+  rcases edge with edge | (⟨check, edge | edge⟩ | ⟨check, edge | edge⟩)
+  · rfl
+  · rcases edge with ⟨xCoord, yCoord⟩
+    simp only [canonDefectEdge]
+    split_ifs <;> simp_all [layerSurfaceEdgePosition]
+  · rfl
+  · rcases edge with ⟨yCoord, zCoord⟩
+    simp only [canonDefectEdge]
+    split_ifs <;> simp_all [layerSurfaceEdgePosition, xyLayerYEdge]
+  · rcases edge with ⟨yCoord, zCoord⟩
+    simp only [canonDefectEdge]
+    split_ifs <;> simp_all [layerSurfaceEdgePosition]
+
+lemma CSSLayerInput.canonDefectEdge_x_active {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (check : Fin nX) (qubit : Fin n)
+    (xCoord : Fin nZ) (hactive : input.xCheck check qubit = 1) :
+    input.canonDefectEdge
+        (Sum.inr (Sum.inl (check, Sum.inl (xCoord, qubit.castSucc)))) =
+      Sum.inl (qubit, Sum.inl (xCoord, check.castSucc)) := by
+  simp [canonDefectEdge, qubit.isLt, hactive]
+
+lemma CSSLayerInput.canonDefectEdge_x_inactive {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (check : Fin nX) (qubit : Fin n)
+    (xCoord : Fin nZ) (hinactive : input.xCheck check qubit ≠ 1) :
+    input.canonDefectEdge
+        (Sum.inr (Sum.inl (check, Sum.inl (xCoord, qubit.castSucc)))) =
+      Sum.inr (Sum.inl (check, Sum.inl (xCoord, qubit.castSucc))) := by
+  simp [canonDefectEdge, qubit.isLt, hinactive]
+
+lemma CSSLayerInput.canonDefectEdge_z_active {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (check : Fin nZ) (qubit : Fin n)
+    (zCoord : Fin nX) (hactive : input.zCheck check qubit = 1) :
+    input.canonDefectEdge
+        (Sum.inr (Sum.inr (check, Sum.inr (qubit.castSucc, zCoord)))) =
+      Sum.inl (qubit, Sum.inr (check.castSucc, zCoord)) := by
+  simp [canonDefectEdge, qubit.isLt, hactive]
+
+lemma CSSLayerInput.canonDefectEdge_z_inactive {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (check : Fin nZ) (qubit : Fin n)
+    (zCoord : Fin nX) (hinactive : input.zCheck check qubit ≠ 1) :
+    input.canonDefectEdge
+        (Sum.inr (Sum.inr (check, Sum.inr (qubit.castSucc, zCoord)))) =
+      Sum.inr (Sum.inr (check, Sum.inr (qubit.castSucc, zCoord))) := by
+  simp [canonDefectEdge, qubit.isLt, hinactive]
+
+lemma CSSLayerInput.canonDefectEdge_y_active {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (xCheck : Fin nX) (zCheck : Fin nZ)
+    (yCoord : Fin n)
+    (hactive : layerYEdge zCheck.castSucc yCoord xCheck.castSucc ∈
+      input.xzNontrivialYJunctionEdges xCheck zCheck) :
+    input.canonDefectEdge (yzLayerYEdge zCheck yCoord xCheck.castSucc) =
+      xyLayerYEdge xCheck zCheck.castSucc yCoord := by
+  simp [canonDefectEdge, yzLayerYEdge, xCheck.isLt, hactive]
+
+lemma CSSLayerInput.canonDefectEdge_y_trivial {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (xCheck : Fin nX) (zCheck : Fin nZ)
+    (yCoord : Fin n)
+    (htrivial : layerYEdge zCheck.castSucc yCoord xCheck.castSucc ∈
+      input.xzTrivialYJunctionEdges xCheck zCheck) :
+    input.canonDefectEdge (yzLayerYEdge zCheck yCoord xCheck.castSucc) =
+      yzLayerYEdge zCheck yCoord xCheck.castSucc := by
+  have hinactive := (Finset.mem_sdiff.mp htrivial).2
+  simp [canonDefectEdge, yzLayerYEdge, xCheck.isLt, hinactive]
+
+lemma CSSLayerInput.canonDefectEdge_x_upper_boundary {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (check : Fin nX) (xCoord : Fin nZ) :
+    input.canonDefectEdge
+        (Sum.inr (Sum.inl (check, Sum.inl (xCoord, Fin.last n)))) =
+      Sum.inr (Sum.inl (check, Sum.inl (xCoord, Fin.last n))) := by
+  simp [canonDefectEdge]
+
+lemma CSSLayerInput.canonDefectEdge_y_upper_boundary {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (check : Fin nZ) (yCoord : Fin n) :
+    input.canonDefectEdge (yzLayerYEdge check yCoord (Fin.last nX)) =
+      yzLayerYEdge check yCoord (Fin.last nX) := by
+  simp [canonDefectEdge, yzLayerYEdge]
+
+lemma CSSLayerInput.canonDefectEdge_z_upper_boundary {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (check : Fin nZ) (zCoord : Fin nX) :
+    input.canonDefectEdge
+        (Sum.inr (Sum.inr (check, Sum.inr (Fin.last n, zCoord)))) =
+      Sum.inr (Sum.inr (check, Sum.inr (Fin.last n, zCoord))) := by
+  simp [canonDefectEdge]
+
+abbrev LayerPhysicalEdge {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ) :=
+  {edge : LayerSurfaceEdge n nX nZ // input.canonDefectEdge edge = edge}
+
+noncomputable instance layerPhysicalEdgeFintype {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) : Fintype (LayerPhysicalEdge input) := by
+  classical
+  exact Fintype.ofFinite _
+
+noncomputable def CSSLayerInput.removedDefectEdges {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) : Finset (LayerSurfaceEdge n nX nZ) := by
+  classical
+  exact Finset.univ.filter (fun edge => input.canonDefectEdge edge ≠ edge)
+
+lemma CSSLayerInput.card_physicalEdge_add_removed {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    Fintype.card (LayerPhysicalEdge input) + input.removedDefectEdges.card =
+      Fintype.card (LayerSurfaceEdge n nX nZ) := by
+  classical
+  rw [Fintype.card_subtype, removedDefectEdges]
+  exact Finset.card_filter_add_card_filter_not _
+
+lemma CSSLayerInput.card_physicalEdge {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    Fintype.card (LayerPhysicalEdge input) =
+      6 * n * nX * nZ + 2 * (n * nX + n * nZ + nX * nZ) -
+        input.removedDefectEdges.card := by
+  have hcount := input.card_physicalEdge_add_removed
+  rw [card_layerSurfaceEdge] at hcount
+  omega
+
+noncomputable def CSSLayerInput.physicalEdge {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (edge : LayerSurfaceEdge n nX nZ) :
+    LayerPhysicalEdge input :=
+  ⟨input.canonDefectEdge edge, input.canonDefectEdge_idempotent edge⟩
+
+lemma CSSLayerInput.physicalEdge_surjective {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) : Function.Surjective input.physicalEdge := by
+  intro edge
+  refine ⟨edge.val, ?_⟩
+  apply Subtype.ext
+  exact edge.property
+
 /-- Position of an incident data layer along one ordered check layer. -/
 inductive CheckLayerJunctionPosition
   | single

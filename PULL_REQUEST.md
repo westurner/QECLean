@@ -34,6 +34,13 @@ input CSS code.
 - Add a separate layer-owned surface-edge space with exact cardinality and
   owner/position injectivity. Coincident uncoupled xy/yz edges remain distinct.
   This is pre-defect geometry, not yet the output qubit index or defect gluing.
+- Implement the proposed active-defect canonical projection on owned edges.
+  Active xy x-edges and yz z-edges normalize to data-layer copies; matched yz
+  y-edges normalize to xy copies. Prove idempotence, spatial preservation,
+  active/inactive and upper-boundary gates, and a surjection onto fixed-point
+  `LayerPhysicalEdge`. Its exact count is the ambient owned-edge count minus
+  removed representatives. Paper-diagram correspondence and check replacement
+  correctness remain unproved; the existing output index is unchanged.
 - Lift owned xy stars and yz plaquettes to Paulis, prove weight four, and
   prove cross-layer disjointness and commutation for arbitrary coordinates.
   Their coordinate projections recover the original cuboid supports. A
@@ -161,6 +168,16 @@ and commuting for arbitrary coordinates, with weight four and the same
 projected spatial supports. Explicit defect coupling, replacements, and the paper's
 superlattice spacing constant `c` still need to be connected to the output
 index; neither finite edge count is claimed as the paper's exact output count.
+
+The revised completion plan uses canonical physical edges, local leg/face
+templates, total replacement-aware slots, and finite local commutation checks.
+Normalization is now implemented, but it is an explicit proposed gluing
+convention, not a derivation of all paper checks. Slot classification does not
+by itself prove support uniqueness or rank. Quotienting can change overlap
+parity, so local embeddings must be injective on the normalized supports.
+Euler counts, triangular pivots, CSS logical representatives, and slice
+nontriviality each require separate proofs. No exact distance formula or
+fixed 36-edge local carrier is claimed without those obligations.
 
 The paper explicitly leaves specialized decoding open, while noting that a
 general renormalization-group decoder is applicable. The exact X/Z sector
