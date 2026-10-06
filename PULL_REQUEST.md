@@ -111,7 +111,9 @@ and twelve boundary point cases), whose supports are given as lattice diagrams.
 Initial four-edge X-star and adjacent-face Z-plaquette candidates now exist at
 x/z junctions, with type and weight proofs, but they are not yet organized into
 the eight case-specific families or replacement rules. The y-junction
-stabilizers and all point-defect supports are also still missing. Its exact finite
+geometry now proves that matched nontrivial segments and their trivial
+complement are disjoint and exhaustive, but the modified y-junction Pauli
+checks and all point-defect supports are still missing. Its exact finite
 edge count is a formal indexing choice and has not been proved to match the
 paper's boundary-spacing convention or exact physical-qubit count. For positive
 dimensions, the formal edge count is now bounded between `3 n n_X n_Z` and

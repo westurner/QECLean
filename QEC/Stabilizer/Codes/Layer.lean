@@ -1308,6 +1308,30 @@ lemma CSSLayerInput.xzTrivialYJunctionEdges_subset_crossing {n k nX nZ : ℕ}
     input.xzTrivialYJunctionEdges x z ⊆ input.xzYCrossingEdges x z :=
   Finset.sdiff_subset
 
+/-- Trivial and matched nontrivial y-segments are disjoint. -/
+lemma CSSLayerInput.xzYJunctionEdges_disjoint {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (x : Fin nX) (z : Fin nZ) :
+    Disjoint (input.xzNontrivialYJunctionEdges x z)
+      (input.xzTrivialYJunctionEdges x z) := by
+  classical
+  rw [Finset.disjoint_left]
+  intro edge hnontrivial htrivial
+  change edge ∈ (input.xzYCrossingEdges x z \
+    input.xzNontrivialYJunctionEdges x z : Finset _ ) at htrivial
+  exact (Finset.mem_sdiff.mp htrivial).2 hnontrivial
+
+/-- Matched nontrivial and residual trivial y-segments partition each crossing. -/
+lemma CSSLayerInput.xzYJunctionEdges_union_eq_crossing {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (x : Fin nX) (z : Fin nZ) :
+    input.xzNontrivialYJunctionEdges x z ∪
+      input.xzTrivialYJunctionEdges x z = input.xzYCrossingEdges x z := by
+  classical
+  ext edge
+  by_cases hnontrivial : edge ∈ input.xzNontrivialYJunctionEdges x z
+  · have hcrossing := input.xzNontrivialYJunctionEdges_subset_crossing x z hnontrivial
+    simp [xzTrivialYJunctionEdges, hnontrivial, hcrossing]
+  · simp [xzTrivialYJunctionEdges, hnontrivial]
+
 /-- The X-oriented defect line where an X-check layer meets an incident data layer. -/
 def CSSLayerInput.xJunctionEdges {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (junction : XJunction input) :
@@ -1479,6 +1503,30 @@ noncomputable def CSSLayerInput.zJunctionZPlaquette {n k nX nZ : ℕ}
     (xCoord : Fin (nX - 1)) :
     NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
   layerZPauli (input.zJunctionZPlaquetteEdges junction xCoord)
+
+/-- The paper's extra Z plaquette at a z junction is present only in the middle case. -/
+noncomputable def CSSLayerInput.zJunctionMiddleZPlaquetteCandidate
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (junction : ZJunction input) (xCoord : Fin (nX - 1)) :
+    Option (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :=
+  if input.zJunctionPosition junction = .middle then
+    some (input.zJunctionZPlaquette junction xCoord)
+  else none
+
+lemma CSSLayerInput.zJunctionMiddleZPlaquetteCandidate_eq_some
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (junction : ZJunction input) (xCoord : Fin (nX - 1))
+    (hposition : input.zJunctionPosition junction = .middle) :
+    input.zJunctionMiddleZPlaquetteCandidate junction xCoord =
+      some (input.zJunctionZPlaquette junction xCoord) := by
+  simp [zJunctionMiddleZPlaquetteCandidate, hposition]
+
+lemma CSSLayerInput.zJunctionMiddleZPlaquetteCandidate_eq_none
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (junction : ZJunction input) (xCoord : Fin (nX - 1))
+    (hposition : input.zJunctionPosition junction ≠ .middle) :
+    input.zJunctionMiddleZPlaquetteCandidate junction xCoord = none := by
+  simp [zJunctionMiddleZPlaquetteCandidate, hposition]
 
 lemma CSSLayerInput.xJunctionXStar_weight {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (junction : XJunction input)

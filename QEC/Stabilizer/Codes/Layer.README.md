@@ -27,14 +27,16 @@ Implemented in `Layer.lean`:
   They are not combined: cross-commutation is not established.
 - Even-cardinality proofs and an ordered matching for each X/Z check overlap.
   Matched y-segments, trivial crossing complements, X/Z incidence lines, and
-  first/middle/last incidence labels are represented as finite geometry.
+  first/middle/last incidence labels are represented as finite geometry. The
+  matched and trivial y-segments are proved disjoint and exhaustive.
 - Point-defect locations as intersections of distinct line supports, split
   into bulk and boundary vertices.
 - Candidate X-star supports and adjacent-face Z-plaquette supports at x/z
   junctions, with first/middle/last orientation choosing the forward data cell
   except at the last incidence. The candidate Paulis are type-correct and have
   proved weight four; they are not yet organized into the paper's case-specific
-  check lists or replacement rules.
+  check lists or replacement rules. The extra z-junction Z plaquette is gated
+  to the middle case, matching the paper's line-defect description.
 
 Implemented in `../Framework/Core/Logical/Decoder.lean`:
 
@@ -50,9 +52,9 @@ Still incomplete:
   yet produce the output code.
 - The full figure-defined line- and point-defect checks are not encoded. The
   x/z star and plaquette templates above are only partial line candidates; the
-  trivial/nontrivial y-junction checks, case-indexed line lists, replacement
-  rules, and all 22 point-defect families remain to be added to generated check
-  lists.
+  modified Pauli checks for nontrivial y-junctions, case-indexed line lists,
+  replacement rules, and all 22 point-defect families remain to be added to
+  generated check lists.
 - Sector decoders are exhaustive reference algorithms, not efficient
   renormalization-group decoders. The Layer-codes paper does not specify its
   suggested specialized decoders.
