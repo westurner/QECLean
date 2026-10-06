@@ -2572,6 +2572,24 @@ noncomputable def CSSLayerInput.gridPhysicalSupport {n k nX nZ : ℕ}
   classical
   exact support.image (input.gridPhysicalEdge layout)
 
+lemma CSSLayerInput.gridPhysicalSupport_insert_of_canon_eq {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (support : Finset (LayerGridSurfaceEdge layout n nX nZ))
+    (added existing : LayerGridSurfaceEdge layout n nX nZ)
+    (hexisting : existing ∈ support)
+    (heq : input.canonGridDefectEdge layout added = input.canonGridDefectEdge layout existing) :
+    input.gridPhysicalSupport layout (insert added support) =
+      input.gridPhysicalSupport layout support := by
+  classical
+  have hphysical :
+      input.gridPhysicalEdge layout existing = input.gridPhysicalEdge layout added := by
+    apply Subtype.ext
+    exact heq.symm
+  unfold gridPhysicalSupport
+  rw [Finset.image_insert]
+  apply Finset.insert_eq_of_mem
+  exact Finset.mem_image.mpr ⟨existing, hexisting, hphysical⟩
+
 noncomputable def CSSLayerInput.gridXPauli {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
     (support : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
@@ -3062,6 +3080,11 @@ lemma layerGridFaceEdge_position_injective {layout : LayerGridLayout} {n nX nZ :
     simp_all [layerGridFaceEdge, LayerGridLayout.edgePosition, LayerGridLayout.ambientEdge,
       layerSurfaceEdgePosition, Fin.ext_iff]
 
+lemma layerGridFaceEdge_injective {layout : LayerGridLayout} {n nX nZ : ℕ}
+    (cell : LayerGridFaceCell layout n nX nZ) : Function.Injective (layerGridFaceEdge cell) := by
+  intro first second heq
+  exact layerGridFaceEdge_position_injective cell (congrArg layout.edgePosition heq)
+
 noncomputable def CSSLayerInput.gridLocalZPlaquette {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
     (cell : LayerGridFaceCell layout n nX nZ) (legs : Finset (Fin 4)) :
@@ -3105,6 +3128,58 @@ lemma CSSLayerInput.gridLocalZPlaquette_univ_weight {n k nX nZ : ℕ}
     NQubitPauliGroupElement.weight (input.gridLocalZPlaquette layout cell Finset.univ) = 4 := by
   rw [input.gridLocalZPlaquette_weight]
   simp
+
+noncomputable def gridZLineAugmentedFaceSupport {n nX nZ : ℕ} (layout : LayerGridLayout)
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX)) :
+    Finset (LayerGridSurfaceEdge layout n nX nZ) := by
+  classical
+  exact insert (Sum.inl (qubit, Sum.inr ((layout.layerCoordinate check).castSucc, zCell)))
+    (Finset.univ.image (layerGridFaceEdge (.yz check (layout.layerCoordinate qubit) zCell)))
+
+lemma gridZLineAugmentedFaceSupport_card {n nX nZ : ℕ} (layout : LayerGridLayout)
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX)) :
+    (gridZLineAugmentedFaceSupport layout qubit check zCell).card = 5 := by
+  classical
+  have hnot : Sum.inl (qubit, Sum.inr ((layout.layerCoordinate check).castSucc, zCell)) ∉
+      (Finset.univ : Finset (Fin 4)).image
+        (layerGridFaceEdge (.yz check (layout.layerCoordinate qubit) zCell)) := by
+    rintro hmem
+    obtain ⟨leg, hleg, heq⟩ := Finset.mem_image.mp hmem
+    fin_cases leg <;> simp [layerGridFaceEdge] at heq
+  rw [gridZLineAugmentedFaceSupport, Finset.card_insert_of_notMem hnot,
+    Finset.card_image_of_injective _ (layerGridFaceEdge_injective _)]
+  simp
+
+lemma CSSLayerInput.gridZLineAugmentedFace_pauli_eq {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX))
+    (hactive : input.zCheck check qubit = 1) :
+    input.gridZPauli layout (gridZLineAugmentedFaceSupport layout qubit check zCell) =
+      input.gridLocalZPlaquette layout (.yz check (layout.layerCoordinate qubit) zCell)
+        Finset.univ := by
+  classical
+  have hexisting : Sum.inr (Sum.inr (check, Sum.inr
+      ((layout.layerCoordinate qubit).castSucc, zCell))) ∈
+      (Finset.univ : Finset (Fin 4)).image
+        (layerGridFaceEdge (.yz check (layout.layerCoordinate qubit) zCell)) := by
+    exact Finset.mem_image.mpr ⟨(3 : Fin 4), Finset.mem_univ _, rfl⟩
+  have heq := (input.canonGridDefectEdge_z_active layout check qubit zCell hactive).symm
+  change input.canonGridDefectEdge layout
+      (Sum.inl (qubit, Sum.inr ((layout.layerCoordinate check).castSucc, zCell))) =
+    input.canonGridDefectEdge layout
+      (Sum.inr (Sum.inr (check, Sum.inr
+        ((layout.layerCoordinate qubit).castSucc, zCell)))) at heq
+  unfold gridLocalZPlaquette gridZPauli gridZLineAugmentedFaceSupport
+  rw [input.gridPhysicalSupport_insert_of_canon_eq layout _ _ _ hexisting heq]
+
+lemma CSSLayerInput.gridZLineAugmentedFace_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX))
+    (hactive : input.zCheck check qubit = 1) :
+    NQubitPauliGroupElement.weight
+      (input.gridZPauli layout (gridZLineAugmentedFaceSupport layout qubit check zCell)) = 4 := by
+  rw [input.gridZLineAugmentedFace_pauli_eq _ _ _ _ hactive]
+  exact input.gridLocalZPlaquette_univ_weight _ _
 
 noncomputable def CSSLayerInput.gridSpanZPlaquetteCandidate {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)

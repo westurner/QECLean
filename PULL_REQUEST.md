@@ -129,6 +129,13 @@ input CSS code.
   qubits or define middle coupling, boundary/point replacements, or global CSS.
   The roadmap now requires coupling-qubit identity validation at middle
   junctions before promoting any gluing convention to the final constructor.
+- Prove a general physical-support insertion redundancy law when two owned
+  edges have the same canonical image. Test an inward yz face augmented by
+  its coincident data-owned z edge: its owned support has cardinality five,
+  but active gluing makes its physical Z Pauli exactly the ordinary
+  weight-four plaquette. This rules out that naive insertion as a distinct
+  middle replacement on the current carrier; no paper-support correspondence
+  or revised gluing convention is claimed.
 - Build separate same-type surface X/Z stabilizer groups that include those
   standard boundary candidates. Cross-sector commutation with line/point defect
   checks remains unproved because those checks are not yet encoded.

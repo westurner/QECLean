@@ -255,6 +255,12 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   the corresponding gates and scaled pairing intervals on real owners, with
   position/idempotence laws and a finite `LayerGridPhysicalEdge` carrier.
   Neither projection's laws alone prove that it realizes the paper's code.
+  The augmented-face regression now proves a concrete limitation: adding the
+  coincident data-owned z edge to an inward yz face gives five distinct owned
+  edges, but active normalization identifies the added edge with a face leg.
+  The physical Pauli is exactly the ordinary weight-four plaquette. This rules
+  out obtaining an additional coupling qubit by that insertion on the current
+  carrier; it does not establish the paper's intended middle-junction support.
   The zero-check capacity obstruction is resolved at the contract boundary:
   the future paper-style constructor takes `LayerConstructionDomain` (both
   layer counts positive). The new spaced carrier additionally proves logical
@@ -296,8 +302,11 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   face has overlap two and commutes. Generalize this to arbitrary endpoints
   and reflected last incidences. The middle-junction diagram includes a
   distinct modified Z support: establish its coupling-qubit identities before
-  deciding which coincident copies the canonical map may merge. A span gate
-  alone is not a middle-junction repair. Do not fabricate a CSS input whose
+  deciding which coincident copies the canonical map may merge. The checked
+  five-owned-edge augmented-face candidate collapses to the ordinary physical
+  face, so it cannot supply a distinct replacement on the current carrier.
+  A span gate alone is not a middle-junction repair. Do not fabricate a CSS
+  input whose
   generator counts equal the larger grid dimensions.
 4. **Point templates and total slots.** Factor the ten bulk and twelve
   boundary cases through the local leg/face combinators. Implement total
