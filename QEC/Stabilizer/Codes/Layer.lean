@@ -385,6 +385,40 @@ lemma layerXPauli_isXType {n nX nZ : ℕ}
     (if (layerEdgeEquiv n nX nZ).symm q ∈ support then PauliOperator.X else PauliOperator.I)
   split_ifs <;> simp [PauliOperator.IsXType]
 
+lemma layerXPauli_commutes_layerZPauli_iff {n nX nZ : ℕ}
+    (xSupport zSupport : Finset (LayerLatticeEdge n nX nZ)) :
+    layerXPauli xSupport * layerZPauli zSupport =
+        layerZPauli zSupport * layerXPauli xSupport ↔
+      Even (xSupport ∩ zSupport).card := by
+  classical
+  rw [NQubitPauliGroupElement.commutes_iff_even_anticommutes]
+  have hset : Finset.univ.filter
+      (NQubitPauliGroupElement.anticommutesAt
+        (layerXPauli xSupport).operators (layerZPauli zSupport).operators) =
+      (xSupport ∩ zSupport).image (layerEdgeEquiv n nX nZ) := by
+    ext qubit
+    have hmem : qubit ∈ (xSupport ∩ zSupport).image (layerEdgeEquiv n nX nZ) ↔
+        (layerEdgeEquiv n nX nZ).symm qubit ∈ xSupport ∩ zSupport := by
+      simp only [Finset.mem_image]
+      constructor
+      · rintro ⟨edge, hedge, rfl⟩
+        simpa using hedge
+      · intro hedge
+        exact ⟨_, hedge, Equiv.apply_symm_apply _ _⟩
+    rw [hmem]
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_inter]
+    unfold NQubitPauliGroupElement.anticommutesAt
+    change ((if (layerEdgeEquiv n nX nZ).symm qubit ∈ xSupport then PauliOperator.X
+        else PauliOperator.I).mulOp
+        (if (layerEdgeEquiv n nX nZ).symm qubit ∈ zSupport then PauliOperator.Z
+        else PauliOperator.I)).phasePower =
+      ((if (layerEdgeEquiv n nX nZ).symm qubit ∈ zSupport then PauliOperator.Z
+        else PauliOperator.I).mulOp
+        (if (layerEdgeEquiv n nX nZ).symm qubit ∈ xSupport then PauliOperator.X
+        else PauliOperator.I)).phasePower + 2 ↔ _
+    split_ifs <;> simp_all [PauliOperator.mulOp]
+  rw [hset, Finset.card_image_of_injective _ (layerEdgeEquiv n nX nZ).injective]
+
 /-- An edge along the x-axis, whose layers are indexed by Z checks. -/
 def layerXEdge {n nX nZ : ℕ} (x : Fin nZ) (y : Fin (n + 1)) (z : Fin (nX + 1)) :
     LayerLatticeEdge n nX nZ :=
@@ -1300,6 +1334,31 @@ lemma CSSLayerInput.nontrivialYJunctionZPlaquetteEdges_card
       interiorCast_ne_succ, interiorSucc_ne_cast]
   rw [Finset.card_insert_of_notMem hnew, card_yzSurfacePlaquetteEdges]
 
+lemma CSSLayerInput.nontrivialYJunctionEdges_overlap
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    input.nontrivialYJunctionXStarEdges cell ∩
+        input.nontrivialYJunctionZPlaquetteEdges cell =
+      {layerYEdge cell.zCheck.castSucc (interiorCast cell.yCell) cell.xCheck.castSucc,
+        layerZEdge cell.zCheck.castSucc (interiorSuccVertex cell.yCell) cell.xCheck} := by
+  classical
+  have hvertex : interiorSuccVertex cell.yCell = (interiorCast cell.yCell).succ := by
+    apply Fin.ext
+    simp [interiorSuccVertex, interiorCast, interiorSucc]
+  simp [nontrivialYJunctionXStarEdges, nontrivialYJunctionZPlaquetteEdges,
+    yzSurfacePlaquetteEdges, layerXEdge, layerYEdge, layerZEdge,
+    hvertex, interiorCast_ne_succ, interiorSucc_ne_cast,
+    fin_castSucc_ne_succ, fin_succ_ne_castSucc]
+
+lemma CSSLayerInput.nontrivialYJunctionEdges_overlap_card
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    (input.nontrivialYJunctionXStarEdges cell ∩
+      input.nontrivialYJunctionZPlaquetteEdges cell).card = 2 := by
+  classical
+  rw [nontrivialYJunctionEdges_overlap]
+  simp [layerYEdge, layerZEdge]
+
 /-- X-Pauli candidate at an interior nontrivial-y junction cell. -/
 noncomputable def CSSLayerInput.nontrivialYJunctionXStarCandidate
     {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
@@ -1342,6 +1401,17 @@ lemma CSSLayerInput.nontrivialYJunctionZPlaquetteCandidate_isZType
     NQubitPauliGroupElement.IsZTypeElement
       (input.nontrivialYJunctionZPlaquetteCandidate cell) :=
   layerZPauli_isZType _
+
+lemma CSSLayerInput.nontrivialYJunctionCandidates_commute
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (cell : NontrivialYJunctionCellIndex input) :
+    input.nontrivialYJunctionXStarCandidate cell *
+        input.nontrivialYJunctionZPlaquetteCandidate cell =
+      input.nontrivialYJunctionZPlaquetteCandidate cell *
+        input.nontrivialYJunctionXStarCandidate cell := by
+  rw [nontrivialYJunctionXStarCandidate, nontrivialYJunctionZPlaquetteCandidate,
+    layerXPauli_commutes_layerZPauli_iff, nontrivialYJunctionEdges_overlap_card]
+  decide
 
 /-- The y-directed defect segment for a matched X/Z overlap pair. -/
 noncomputable def CSSLayerInput.xzPairYJunctionEdges {n k nX nZ : ℕ}

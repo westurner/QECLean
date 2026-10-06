@@ -51,8 +51,10 @@ Implemented in `Layer.lean`:
   case, matching the paper's line-defect descriptions.
 - Interior nontrivial-y cell candidates require two consecutive edges in a
   matched segment. Their X/Z lifts are type-correct with weights four and five;
-  their cross-sector overlap has not been proved even, so they remain outside
-  the generated check lists.
+  the same-cell pair has exactly two common edges and provably commutes. A
+  reusable theorem identifies X/Z edge-lift commutation with even support
+  overlap. Arbitrary-cell and cross-family commutation remain unproved, so
+  these candidates remain outside the generated check lists.
 
 Implemented in `../Framework/Core/Logical/Decoder.lean`:
 
