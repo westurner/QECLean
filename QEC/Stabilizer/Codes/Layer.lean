@@ -1738,6 +1738,81 @@ structure LayerPointDefect {n k nX nZ : ℕ}
   vertex_on_first : vertex ∈ input.layerLineDefectVertices firstLine
   vertex_on_second : vertex ∈ input.layerLineDefectVertices secondLine
 
+/-- The ten bulk point-defect configurations enumerated in the Layer-codes paper.
+
+These constructors classify local line orientations only; they do not yet
+specify the modified Pauli supports shown in the paper's diagrams. -/
+inductive LayerBulkPointDefectCase
+  | firstXFirstZNontrivialY
+  | lastXLastZNontrivialY
+  | middleXMiddleZTrivialBelowNontrivialAbove
+  | middleXMiddleZNontrivialBelowTrivialAbove
+  | middleXFirstZNontrivialYAbove
+  | middleXLastZNontrivialYBelow
+  | firstXMiddleZNontrivialYAbove
+  | lastXMiddleZNontrivialYBelow
+  | trivialXMiddleZNontrivialYThrough
+  | middleXTrivialZNontrivialYThrough
+  deriving DecidableEq
+
+instance : Fintype LayerBulkPointDefectCase where
+  elems := {
+    .firstXFirstZNontrivialY,
+    .lastXLastZNontrivialY,
+    .middleXMiddleZTrivialBelowNontrivialAbove,
+    .middleXMiddleZNontrivialBelowTrivialAbove,
+    .middleXFirstZNontrivialYAbove,
+    .middleXLastZNontrivialYBelow,
+    .firstXMiddleZNontrivialYAbove,
+    .lastXMiddleZNontrivialYBelow,
+    .trivialXMiddleZNontrivialYThrough,
+    .middleXTrivialZNontrivialYThrough }
+  complete := by
+    intro x
+    cases x <;> simp
+
+/-- The twelve boundary point-defect configurations enumerated in the paper. -/
+inductive LayerBoundaryPointDefectCase
+  | firstZFrontYZ
+  | firstZBackYZ
+  | lastZFrontYZ
+  | lastZBackYZ
+  | middleZFrontYZ
+  | middleZBackYZ
+  | firstXLeftYZ
+  | firstXRightYZ
+  | lastXLeftYZ
+  | lastXRightYZ
+  | middleXLeftYZ
+  | middleXRightYZ
+  deriving DecidableEq
+
+instance : Fintype LayerBoundaryPointDefectCase where
+  elems := {
+    .firstZFrontYZ,
+    .firstZBackYZ,
+    .lastZFrontYZ,
+    .lastZBackYZ,
+    .middleZFrontYZ,
+    .middleZBackYZ,
+    .firstXLeftYZ,
+    .firstXRightYZ,
+    .lastXLeftYZ,
+    .lastXRightYZ,
+    .middleXLeftYZ,
+    .middleXRightYZ }
+  complete := by
+    intro x
+    cases x <;> simp
+
+/-- The disjoint sum of all ten bulk and twelve boundary point-defect cases. -/
+abbrev LayerPointDefectCase :=
+  LayerBulkPointDefectCase ⊕ LayerBoundaryPointDefectCase
+
+/-- The point-defect taxonomy has exactly the 22 cases listed by the paper. -/
+theorem layerPointDefectCase_card : Fintype.card LayerPointDefectCase = 22 := by
+  decide
+
 /-- A cuboid vertex is on the physical boundary iff one coordinate is an endpoint. -/
 def LayerLatticeVertex.onBoundary {n nX nZ : ℕ}
     (vertex : LayerLatticeVertex n nX nZ) : Prop :=

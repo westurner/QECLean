@@ -32,6 +32,10 @@ Implemented in `Layer.lean`:
   kinds now appear in the line index used for point-intersection detection.
 - Point-defect locations as intersections of distinct line supports, split
   into bulk and boundary vertices.
+- Finite indices for the ten bulk and twelve boundary point-defect case labels
+  from the paper, with a theorem that the combined taxonomy has 22 cases. The
+  indices classify configurations only; they do not define the diagrammed
+  point-check supports.
 - Candidate X-star supports and adjacent-face Z-plaquette supports at x/z
   junctions, with first/middle/last orientation choosing the forward data cell
   except at the last incidence. The candidate Paulis are type-correct and have
@@ -58,7 +62,7 @@ Still incomplete:
 - The full figure-defined line- and point-defect checks are not encoded. The
   x/z and interior nontrivial-y templates above are only partial candidates;
   y cross-commutation, case-indexed line lists, replacement rules, and all 22
-  point-defect families remain to be added to generated check lists.
+  point-defect support families remain to be added to generated check lists.
 - Sector decoders are exhaustive reference algorithms, not efficient
   renormalization-group decoders. The Layer-codes paper does not specify its
   suggested specialized decoders.
@@ -95,10 +99,10 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   adjacent-face plaquette candidates now have type and weight proofs. Finish
   the case-indexed lists, y-junction checks, applicability conditions, and
   replacement/incidence lemmas for every family.
-4. **Encode point-defect checks.** Translate the ten bulk and twelve boundary
-   point-defect configurations into explicit support constructors. State
-   which adjacent line checks are replaced so the final generator list has no
-   duplicates or stale bulk checks.
+4. **Encode point-defect checks.** The ten bulk and twelve boundary case labels
+  are now indexed. Translate each into explicit support constructors and
+  state which adjacent line checks are replaced so the final generator list
+  has no duplicates or stale bulk checks.
 5. **Prove the CSS stabilizer laws.** Assemble one X list and one Z list from
    the surface and defect checks. Prove phase zero, per-generator weight at
    most six, and every X/Z commutation relation. Reuse the existing CSS

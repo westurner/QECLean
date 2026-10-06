@@ -116,7 +116,10 @@ complement are disjoint and exhaustive, and the line index includes both for
 point-location detection. The modified y-junction Pauli checks and all
 point-defect supports are still missing. Interior nontrivial-y X/Z support
 candidates now have type and weight proofs, but their cross-sector overlap is
-not yet proved even and they are not integrated into the check lists. Its exact finite
+not yet proved even and they are not integrated into the check lists. The ten
+bulk and twelve boundary point-defect patterns are now indexed as a 22-case
+taxonomy, but their diagrammed supports and adjacent-check replacements remain
+unimplemented. Its exact finite
 edge count is a formal indexing choice and has not been proved to match the
 paper's boundary-spacing convention or exact physical-qubit count. For positive
 dimensions, the formal edge count is now bounded between `3 n n_X n_Z` and
