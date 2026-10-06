@@ -28,7 +28,8 @@ Implemented in `Layer.lean`:
 - Even-cardinality proofs and an ordered matching for each X/Z check overlap.
   Matched y-segments, trivial crossing complements, X/Z incidence lines, and
   first/middle/last incidence labels are represented as finite geometry. The
-  matched and trivial y-segments are proved disjoint and exhaustive.
+  matched and trivial y-segments are proved disjoint and exhaustive, and both
+  kinds now appear in the line index used for point-intersection detection.
 - Point-defect locations as intersections of distinct line supports, split
   into bulk and boundary vertices.
 - Candidate X-star supports and adjacent-face Z-plaquette supports at x/z

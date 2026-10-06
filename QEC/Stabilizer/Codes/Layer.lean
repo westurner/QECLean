@@ -1582,9 +1582,20 @@ lemma CSSLayerInput.zJunctionZPlaquette_isZType {n k nX nZ : ℕ}
 abbrev YJunctionPairIndex {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ) :=
   Σ x : Fin nX, Σ z : Fin nZ, Fin ((input.xzCheckOverlap x z).card / 2)
 
-/-- Every Tanner-incidence and matched-overlap line defect in the cuboid. -/
+/-- One unpaired edge on the trivial crossing of X and Z check layers. -/
+abbrev TrivialYJunctionEdgeIndex {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :=
+  Σ x : Fin nX, Σ z : Fin nZ,
+    {y : Fin n // layerYEdge z.castSucc y x.castSucc ∈
+      input.xzTrivialYJunctionEdges x z}
+
+/-- A geometric y-junction segment is trivial or belongs to one matched pair. -/
+abbrev YJunctionLineIndex {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ) :=
+  TrivialYJunctionEdgeIndex input ⊕ YJunctionPairIndex input
+
+/-- Every Tanner-incidence and trivial or matched-overlap line defect. -/
 abbrev LayerLineDefectIndex {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ) :=
-  XJunction input ⊕ (ZJunction input ⊕ YJunctionPairIndex input)
+  XJunction input ⊕ (ZJunction input ⊕ YJunctionLineIndex input)
 
 /-- Edge support of one of the three line-defect orientations. -/
 noncomputable def CSSLayerInput.layerLineDefectEdges {n k nX nZ : ℕ}
@@ -1592,7 +1603,16 @@ noncomputable def CSSLayerInput.layerLineDefectEdges {n k nX nZ : ℕ}
     LayerLineDefectIndex input → Finset (LayerLatticeEdge n nX nZ)
   | Sum.inl junction => input.xJunctionEdges junction
   | Sum.inr (Sum.inl junction) => input.zJunctionEdges junction
-  | Sum.inr (Sum.inr ⟨x, z, pair⟩) => input.xzPairYJunctionEdges x z pair
+  | Sum.inr (Sum.inr (Sum.inl ⟨x, z, ⟨y, _⟩⟩)) =>
+      {layerYEdge z.castSucc y x.castSucc}
+  | Sum.inr (Sum.inr (Sum.inr ⟨x, z, pair⟩)) =>
+      input.xzPairYJunctionEdges x z pair
+
+/-- The support of an indexed trivial y-segment is its single crossing edge. -/
+lemma CSSLayerInput.layerLineDefectEdges_trivialY {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (segment : TrivialYJunctionEdgeIndex input) :
+    input.layerLineDefectEdges (Sum.inr (Sum.inr (Sum.inl segment))) =
+      {layerYEdge segment.2.1.castSucc segment.2.2.val segment.1.castSucc} := rfl
 
 /-- Vertices of the finite cuboid lattice. -/
 abbrev LayerLatticeVertex (n nX nZ : ℕ) : Type :=
