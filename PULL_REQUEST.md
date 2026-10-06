@@ -73,6 +73,11 @@ input CSS code.
   Verify all four two-by-two corners commute, including on normalized
   physical representatives for every input and data-layer owner. Prove
   same-owner overlap transport without assuming it for cross-owner gluing.
+- Prove a construction-domain obstruction: with both check counts zero,
+  `LayerPhysicalEdge` has cardinality zero, so positive `k` cannot satisfy
+  the output capacity bound. A dimension-preserving constructor on this
+  carrier needs an explicit domain restriction or a different degenerate
+  carrier. The general input interface has not been silently restricted.
 - Build separate same-type surface X/Z stabilizer groups that include those
   standard boundary candidates. Cross-sector commutation with line/point defect
   checks remains unproved because those checks are not yet encoded.
@@ -200,6 +205,10 @@ parity, so local embeddings must be injective on the normalized supports.
 Euler counts, triangular pivots, CSS logical representatives, and slice
 nontriviality each require separate proofs. No exact distance formula or
 fixed 36-edge local carrier is claimed without those obligations.
+
+The zero-check domain obstruction is now kernel-checked. Additionally, direct
+inspection of the first/middle z-junction diagrams shows five-leg modified
+stars; the earlier four-edge candidates are not complete replacements.
 
 The paper explicitly leaves specialized decoding open, while noting that a
 general renormalization-group decoder is applicable. The exact X/Z sector

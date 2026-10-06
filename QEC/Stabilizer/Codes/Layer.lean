@@ -1934,6 +1934,17 @@ lemma CSSLayerInput.card_physicalEdge {n k nX nZ : ℕ}
   rw [card_layerSurfaceEdge] at hcount
   omega
 
+lemma CSSLayerInput.card_physicalEdge_no_check_layers {n k : ℕ}
+    (input : CSSLayerInput n k 0 0) : Fintype.card (LayerPhysicalEdge input) = 0 := by
+  rw [input.card_physicalEdge]
+  simp
+
+lemma CSSLayerInput.no_physical_capacity_without_check_layers {n k : ℕ}
+    (input : CSSLayerInput n k 0 0) (hk : 0 < k) :
+    ¬ k ≤ Fintype.card (LayerPhysicalEdge input) := by
+  rw [input.card_physicalEdge_no_check_layers]
+  omega
+
 noncomputable def CSSLayerInput.physicalEdge {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (edge : LayerSurfaceEdge n nX nZ) :
     LayerPhysicalEdge input :=

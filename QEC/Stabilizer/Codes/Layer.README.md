@@ -63,6 +63,13 @@ Implemented in `Layer.lean`:
   for every supplied input and data-layer owner. Same-owner intersection and
   overlap-cardinality transport are proved; this does not apply unrestrictedly
   to supports on different owners.
+- `card_physicalEdge_no_check_layers` proves that the proposed physical
+  carrier is empty when `nX = nZ = 0`.
+  `no_physical_capacity_without_check_layers` excludes the required
+  `k ≤ N` capacity bound for positive `k` in that case. The unrestricted
+  `CSSLayerInput` domain therefore cannot have a dimension-preserving
+  constructor on this carrier: require a nondegenerate construction domain,
+  or specify a different carrier/construction for degenerate inputs.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -170,6 +177,11 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   coupling qubits, truncated layers, and superlattice spacing `c`, before
   replacing `LayerOutputSize`. These normalization laws alone do not prove
   that the convention realizes the paper's code.
+  Resolve the proved zero-check capacity obstruction before a total
+  constructor is promised: restrict its construction domain or define a
+  separate degenerate geometry. Do not silently add count hypotheses to
+  `CSSLayerInput` or pretend the existing carrier has capacity for positive
+  `k` when both check counts vanish.
 2. **Local legs and boundary rules.** Twelve bulk half-star leg slots and their
   three surface-star projection laws are implemented, along with normalized
   X-star type and six-leg weight bounds. Four-leg planar face combinators,
@@ -320,6 +332,14 @@ source assets were left untouched. A standard boundary primitive is not a
 replacement slot: full face slots at truncated boundaries still need to be
 suppressed by the total construction. Defect termination, `single` incidence,
 coupling supports, and the complete line/point case table remain outstanding.
+
+The subsequent domain regression proves that both zero check counts give an
+empty physical carrier and that positive logical capacity then cannot hold.
+Choosing a restricted construction domain versus a separate degenerate
+carrier remains a required contract decision. The first/middle z-junction
+diagrams (pages 33/34 of `TikzFigures.pdf`) were inspected: their displayed
+modified stars have five legs, so the existing four-edge candidates must not
+be emitted as complete line templates.
 
 Focused Lean checks and the Layer build (`3,147` jobs) pass, with the existing
 linter warnings unchanged. The parent documentation build also succeeds with
