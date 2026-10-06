@@ -36,7 +36,9 @@ Implemented in `Layer.lean`:
   from the paper, with a theorem that the combined taxonomy has 22 cases. The
   indices classify configurations only; they do not define the diagrammed
   point-check supports. Each bulk label also carries its X/Z incidence
-  position (or a trivial crossing) and oriented y-junction pattern. Boundary
+  position (or a trivial crossing) and oriented y-junction pattern. The bulk
+  classification counts are proved: one trivial X-crossing case, one trivial
+  Z-crossing case, and two nontrivial through-y cases. Boundary
   applicability tags identify the two
   middle-z cases with an extra plaquette and the six x-junction cases with
   modified boundary stars.
@@ -76,6 +78,10 @@ Still incomplete:
 - Sector decoders are exhaustive reference algorithms, not efficient
   renormalization-group decoders. The Layer-codes paper does not specify its
   suggested specialized decoders.
+- The cited general RG method requires cluster geometry and local
+  topological-order and annihilation contracts that the certificate-based
+  `LayerCode` does not supply. The syndrome-XOR theorem alone does not
+  implement clustering, local recovery, or a multiscale decoder.
 - There is no proof that a complete candidate list commutes, has independent
   generators of length `N - k`, excludes `-I`, or has exactly `k` logical
   qubits. No output distance lower-bound theorem has been derived from the
@@ -132,7 +138,10 @@ Factory environment. Before starting, check `command -v lean lake rg` and
 8. **Connect and test decoding.** Keep the exhaustive general and sector
   decoders as correctness references for small finite examples. Select and
   prove an efficient Layer-specific decoder separately; the paper leaves this
-  algorithm open. Test the full constructor on the 3-qubit repetition,
+  algorithm open. For an RG implementation, first supply cluster geometry and
+  local topological-order/annihilation contracts, then use the syndrome-XOR law
+  to justify staged residual updates. Test the full constructor on the
+  3-qubit repetition,
   `[[4,2,2]]`, Shor, and Steane examples after their defect supports are
   available.
 
@@ -159,6 +168,7 @@ command -v lean lake rg
 lean --version
 lake env lean QEC/Stabilizer/Codes/Layer.lean
 lake build QEC.Stabilizer.Codes.Layer
+lake build QEC.Stabilizer.Framework.Core.Logical.Decoder
 lake env lean QEC/Stabilizer/Codes.lean
 rg -n 'sorry|admit|native_decide' QEC/Stabilizer/Codes/Layer.lean QEC/Stabilizer/Framework/Core/Logical/Decoder.lean
 git diff --check
@@ -167,3 +177,19 @@ git diff --check
 The `rg` command is an audit, not a substitute for Lean's diagnostics. Also
 build each focused example module and the `QEC.Stabilizer.Codes` umbrella after
 the constructor is integrated.
+
+### Recorded Checkpoint
+
+The previous development loop produced seven focused commits, from `01029ee`
+through `3bb1806`. At that checkpoint:
+
+- `lake build QEC.Stabilizer.Codes.Layer` passed at `3,147/3,147` jobs.
+- `lake build QEC.Stabilizer.Framework.Core.Logical.Decoder` passed at
+  `3,144/3,144` jobs.
+- `git diff --check` passed.
+- The broader `lake build QEC.Stabilizer.Codes` still had failures in unrelated
+  modules.
+
+The full check lists, point-defect supports and replacement rules, output
+CSS/dimension/distance laws, and RG decoder remain incomplete. Preserved `.tmp`
+paper files and unrelated parent-worktree changes were left untouched.

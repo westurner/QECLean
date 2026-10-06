@@ -125,7 +125,10 @@ The ten bulk and twelve boundary point-defect patterns are now indexed as a
 22-case taxonomy. Bulk labels carry the X/Z incidence positions and oriented
 y-pattern; boundary metadata marks the two extra-plaquette cases and six
 modified-star cases. Diagrammed supports and adjacent-check replacements
-remain unimplemented. Its exact finite
+remain unimplemented. The bulk classification counts are proved: one trivial
+X-crossing case, one trivial Z-crossing case, and two nontrivial through-y
+cases. These counts classify labels, not generated point-defect supports.
+Its exact finite
 edge count is a formal indexing choice and has not been proved to match the
 paper's boundary-spacing convention or exact physical-qubit count. For positive
 dimensions, the formal edge count is now bounded between `3 n n_X n_Z` and
@@ -136,7 +139,10 @@ of this Lean module.
 The paper explicitly leaves specialized decoding open, while noting that a
 general renormalization-group decoder is applicable. The exact X/Z sector
 decoders added here are separate exhaustive reference algorithms; they do not
-implement that RG method or claim efficiency. Other
+implement that RG method or claim efficiency. The cited general RG method
+needs cluster geometry and local topological-order and annihilation contracts
+that the certificate-based `LayerCode` does not currently supply. The
+syndrome-XOR law is algebraic groundwork only, not an RG implementation. Other
 published local-code constructions, including Portnoy's subdivided-manifold
 construction [#portnoy-2023] and Lin, Wills, and Hsieh's subdivision approach
 [#lin-wills-hsieh-2023], use different construction mechanisms rather than
@@ -145,8 +151,19 @@ indexing.
 
 ## Verification
 
+The previous development loop produced seven focused commits, from `01029ee`
+through `3bb1806`. This is a partial-completion checkpoint, not completion of
+the Layer construction plan. Recorded checks at that checkpoint:
+
 - `lake build QEC.Stabilizer.Codes.Layer` under Lean `v4.35.0-rc3`: passed,
   `3,147/3,147` Lake jobs.
+- `lake build QEC.Stabilizer.Framework.Core.Logical.Decoder`: passed,
+  `3,144/3,144` Lake jobs.
+- `git diff --check`: passed.
+- The broader `lake build QEC.Stabilizer.Codes` still fails in unrelated
+  modules; focused successes do not imply an umbrella-build success.
+- Preserved `.tmp` paper files and unrelated parent-worktree changes were
+  left untouched.
 - The Sustainable Factory root devcontainer installs PyMuPDF in an isolated
   `/opt/pdf-tools` virtual environment for inspecting the paper's PDF check
   diagrams. The root image could not be built here because Docker/Podman/Buildah
