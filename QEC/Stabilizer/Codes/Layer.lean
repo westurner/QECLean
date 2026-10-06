@@ -2241,6 +2241,12 @@ abbrev LayerGridSurfaceEdge (layout : LayerGridLayout) (n nX nZ : ℕ) :=
     (Fin nZ × ((Fin (layout.extent n) × Fin (layout.extent nX + 1)) ⊕
       (Fin (layout.extent n + 1) × Fin (layout.extent nX)))))
 
+instance layerGridSurfaceEdgeDecidableEq (layout : LayerGridLayout) (n nX nZ : ℕ) :
+    DecidableEq (LayerGridSurfaceEdge layout n nX nZ) := by
+  unfold LayerGridSurfaceEdge
+  exact @instDecidableEqSum _ _ (by infer_instance)
+    (@instDecidableEqSum _ _ (by infer_instance) (by infer_instance))
+
 def LayerGridLayout.ambientEdge (layout : LayerGridLayout) {n nX nZ : ℕ} :
     LayerGridSurfaceEdge layout n nX nZ →
       LayerSurfaceEdge (layout.extent n) (layout.extent nX) (layout.extent nZ)
@@ -2321,6 +2327,20 @@ lemma LayerGridLayout.indexAtVertex_lt_spacing (layout : LayerGridLayout) {count
       simp only [Nat.succ_eq_add_one, Nat.zero_add, Nat.mul_one] at hlower
       simp only [Fin.val_castSucc, LayerGridLayout.layerCoordinate] at hcoordinate
       omega
+
+lemma LayerGridLayout.indexAtVertex_eq_none_iff (layout : LayerGridLayout) {count : ℕ}
+    (coordinate : Fin (layout.extent count + 1)) :
+    layout.indexAtVertex coordinate = none ↔
+      ∀ index : Fin count, coordinate ≠ (layout.layerCoordinate index).castSucc := by
+  constructor
+  · intro hnone index heq
+    rw [heq, layout.indexAtVertex_layerCoordinate] at hnone
+    contradiction
+  · intro hmissing
+    cases hindex : layout.indexAtVertex coordinate with
+    | none => rfl
+    | some index =>
+      exact False.elim (hmissing index (layout.indexAtVertex_spec coordinate index hindex))
 
 def LayerGridLayout.edgePosition (layout : LayerGridLayout) {n nX nZ : ℕ}
     (edge : LayerGridSurfaceEdge layout n nX nZ) :
@@ -2956,6 +2976,56 @@ def LayerGridFaceCell.ambientCell {layout : LayerGridLayout} {n nX nZ : ℕ} :
   | .xy check xCell yCell => ⟨xCell, yCell, layout.layerCoordinate check⟩
   | .yz check yCell zCell => ⟨layout.layerCoordinate check, yCell, zCell⟩
 
+def gridCheckCellWithinSpan {n : ℕ} (layout : LayerGridLayout)
+    (row : Fin n → ZMod 2) (yCell : Fin (layout.extent n)) : Prop :=
+  ∃ lower upper : Fin n, row lower = 1 ∧ row upper = 1 ∧
+    (layout.layerCoordinate lower).val ≤ yCell.val ∧
+      yCell.val < (layout.layerCoordinate upper).val
+
+def CSSLayerInput.gridFaceWithinCheckSpan {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
+    LayerGridFaceCell layout n nX nZ → Prop
+  | .xz _ _ _ => True
+  | .xy check _ yCell => gridCheckCellWithinSpan layout (input.xCheck check) yCell
+  | .yz check yCell _ => gridCheckCellWithinSpan layout (input.zCheck check) yCell
+
+lemma gridCheckCellWithinSpan_not_below {n : ℕ} (layout : LayerGridLayout)
+    (row : Fin n → ZMod 2) (yCell : Fin (layout.extent n))
+    (hbelow : ∀ qubit, row qubit = 1 → yCell.val < (layout.layerCoordinate qubit).val) :
+    ¬ gridCheckCellWithinSpan layout row yCell := by
+  rintro ⟨lower, upper, hlower, hupper, hstart, hend⟩
+  have hbound := hbelow lower hlower
+  omega
+
+lemma gridCheckCellWithinSpan_not_above {n : ℕ} (layout : LayerGridLayout)
+    (row : Fin n → ZMod 2) (yCell : Fin (layout.extent n))
+    (habove : ∀ qubit, row qubit = 1 → (layout.layerCoordinate qubit).val ≤ yCell.val) :
+    ¬ gridCheckCellWithinSpan layout row yCell := by
+  rintro ⟨lower, upper, hlower, hupper, hstart, hend⟩
+  have hbound := habove upper hupper
+  omega
+
+lemma gridCheckCellWithinSpan_single {n : ℕ} (layout : LayerGridLayout)
+    (row : Fin n → ZMod 2) (qubit : Fin n) (yCell : Fin (layout.extent n))
+    (hsingle : ∀ other, row other = 1 → other = qubit) :
+    ¬ gridCheckCellWithinSpan layout row yCell := by
+  rintro ⟨lower, upper, hlower, hupper, hstart, hend⟩
+  rw [hsingle lower hlower] at hstart
+  rw [hsingle upper hupper] at hend
+  omega
+
+lemma gridCheckCellWithinSpan_prefix {n : ℕ} (layout : LayerGridLayout)
+    (row : Fin n → ZMod 2) (yCell : Fin (layout.extent n))
+    (hprefix : yCell.val < layout.spacing) :
+    ¬ gridCheckCellWithinSpan layout row yCell := by
+  apply gridCheckCellWithinSpan_not_below
+  intro qubit hactive
+  have hlower := Nat.mul_le_mul_left layout.spacing
+    (show 1 ≤ qubit.val + 1 by omega)
+  simp only [Nat.mul_one] at hlower
+  change yCell.val < layout.spacing * (qubit.val + 1)
+  omega
+
 def layerGridFaceEdge {layout : LayerGridLayout} {n nX nZ : ℕ}
     (cell : LayerGridFaceCell layout n nX nZ) : Fin 4 → LayerGridSurfaceEdge layout n nX nZ :=
   match cell with
@@ -3035,6 +3105,232 @@ lemma CSSLayerInput.gridLocalZPlaquette_univ_weight {n k nX nZ : ℕ}
     NQubitPauliGroupElement.weight (input.gridLocalZPlaquette layout cell Finset.univ) = 4 := by
   rw [input.gridLocalZPlaquette_weight]
   simp
+
+noncomputable def CSSLayerInput.gridSpanZPlaquetteCandidate {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (cell : LayerGridFaceCell layout n nX nZ) :
+    Option (NQubitPauliGroupElement (Fintype.card (LayerGridPhysicalEdge input layout))) := by
+  classical
+  exact if input.gridFaceWithinCheckSpan layout cell
+    then some (input.gridLocalZPlaquette layout cell Finset.univ) else none
+
+lemma CSSLayerInput.gridSpanZPlaquetteCandidate_eq_some_iff {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (cell : LayerGridFaceCell layout n nX nZ)
+    (check : NQubitPauliGroupElement (Fintype.card (LayerGridPhysicalEdge input layout))) :
+    input.gridSpanZPlaquetteCandidate layout cell = some check ↔
+      input.gridFaceWithinCheckSpan layout cell ∧
+        input.gridLocalZPlaquette layout cell Finset.univ = check := by
+  classical
+  by_cases hspan : input.gridFaceWithinCheckSpan layout cell <;>
+    simp [gridSpanZPlaquetteCandidate, hspan]
+
+lemma CSSLayerInput.gridSpanZPlaquetteCandidate_none_iff {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (cell : LayerGridFaceCell layout n nX nZ) :
+    input.gridSpanZPlaquetteCandidate layout cell = none ↔
+      ¬ input.gridFaceWithinCheckSpan layout cell := by
+  classical
+  by_cases hspan : input.gridFaceWithinCheckSpan layout cell <;>
+    simp [gridSpanZPlaquetteCandidate, hspan]
+
+lemma CSSLayerInput.gridSpanZPlaquetteCandidate_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (cell : LayerGridFaceCell layout n nX nZ)
+    (check : NQubitPauliGroupElement (Fintype.card (LayerGridPhysicalEdge input layout)))
+    (hcheck : input.gridSpanZPlaquetteCandidate layout cell = some check) :
+    NQubitPauliGroupElement.weight check = 4 := by
+  obtain ⟨hspan, rfl⟩ := (input.gridSpanZPlaquetteCandidate_eq_some_iff _ _ _).mp hcheck
+  exact input.gridLocalZPlaquette_univ_weight _ _
+
+lemma CSSLayerInput.gridSpanZPlaquetteCandidate_isZType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (cell : LayerGridFaceCell layout n nX nZ)
+    (check : NQubitPauliGroupElement (Fintype.card (LayerGridPhysicalEdge input layout)))
+    (hcheck : input.gridSpanZPlaquetteCandidate layout cell = some check) :
+    NQubitPauliGroupElement.IsZTypeElement check := by
+  obtain ⟨hspan, rfl⟩ := (input.gridSpanZPlaquetteCandidate_eq_some_iff _ _ _).mp hcheck
+  exact input.gridLocalZPlaquette_isZType _ _ _
+
+lemma gridSpanZPlaquetteCandidate_opposite_face {k : ℕ} (input : CSSLayerInput 2 k 1 1) :
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    input.gridSpanZPlaquetteCandidate layout (.yz 0 (3 : Fin 12) (1 : Fin 8)) = none := by
+  apply (input.gridSpanZPlaquetteCandidate_none_iff _ _).mpr
+  exact gridCheckCellWithinSpan_prefix _ _ _ (by decide)
+
+lemma grid_zLine_prefix_star_fixed {k : ℕ} (input : CSSLayerInput 2 k 1 1) (leg : Fin 5) :
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    input.canonGridDefectEdge layout
+        (layout.zLineFiveLegEdge (nX := 1) (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false leg) =
+      layout.zLineFiveLegEdge (nX := 1) (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false leg := by
+  fin_cases leg
+  · rfl
+  · rfl
+  · rfl
+  · rfl
+  · let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    have hz1 : layout.indexAtVertex (count := 1) (1 : Fin 9) = none :=
+      layout.indexAtVertex_lt_spacing _ (by decide)
+    change input.canonGridDefectEdge layout
+      (Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (1 : Fin 9))))) =
+        Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (1 : Fin 9))))
+    simp only [CSSLayerInput.canonGridDefectEdge, hz1]
+    rfl
+
+lemma grid_zLine_opposite_face_odd_overlap {k : ℕ}
+    (input : CSSLayerInput 2 k 1 1) (hactive : input.zCheck 0 0 = 1) :
+    (by
+      let layout : LayerGridLayout := ⟨4, le_rfl⟩
+      exact ((Finset.univ : Finset (Fin 5)).image (fun leg =>
+        input.canonGridDefectEdge layout
+          (layout.zLineFiveLegEdge (nX := 1) (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false leg)) ∩
+        (Finset.univ : Finset (Fin 4)).image (fun leg =>
+          input.canonGridDefectEdge layout (layerGridFaceEdge
+            (LayerGridFaceCell.yz (n := 2) (nX := 1) (nZ := 1)
+              (0 : Fin 1) (3 : Fin 12) (1 : Fin 8)) leg))).card = 1) := by
+  let layout : LayerGridLayout := ⟨4, le_rfl⟩
+  let star := layout.zLineFiveLegEdge (nX := 1) (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false
+  let face : LayerGridFaceCell layout 2 1 1 := .yz 0 (3 : Fin 12) (1 : Fin 8)
+  let normalizedFace : Fin 4 → LayerGridSurfaceEdge layout 2 1 1 := fun leg =>
+    match leg.val with
+    | 0 => Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((3 : Fin 12), (1 : Fin 9))))
+    | 1 => Sum.inl ((0 : Fin 2), Sum.inr ((4 : Fin 9), (1 : Fin 8)))
+    | 2 => Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((3 : Fin 12), (2 : Fin 9))))
+    | _ => Sum.inr (Sum.inr ((0 : Fin 1), Sum.inr ((3 : Fin 13), (1 : Fin 8))))
+  have hz1 : layout.indexAtVertex (count := 1) (1 : Fin 9) = none :=
+    layout.indexAtVertex_lt_spacing _ (by decide)
+  have hz2 : layout.indexAtVertex (count := 1) (2 : Fin 9) = none :=
+    layout.indexAtVertex_lt_spacing _ (by decide)
+  have hy3 : layout.indexAtVertex (count := 2) (3 : Fin 13) = none :=
+    layout.indexAtVertex_lt_spacing _ (by decide)
+  have hface (leg : Fin 4) : input.canonGridDefectEdge layout (layerGridFaceEdge face leg) =
+      normalizedFace leg := by
+    fin_cases leg
+    · change input.canonGridDefectEdge layout
+        (Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((3 : Fin 12), (1 : Fin 9))))) =
+          Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((3 : Fin 12), (1 : Fin 9))))
+      simp only [CSSLayerInput.canonGridDefectEdge, hz1]
+      rfl
+    · exact input.canonGridDefectEdge_z_active layout (0 : Fin 1) (0 : Fin 2) (1 : Fin 8)
+        hactive
+    · change input.canonGridDefectEdge layout
+        (Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((3 : Fin 12), (2 : Fin 9))))) =
+          Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((3 : Fin 12), (2 : Fin 9))))
+      simp only [CSSLayerInput.canonGridDefectEdge, hz2]
+      rfl
+    · change input.canonGridDefectEdge layout
+        (Sum.inr (Sum.inr ((0 : Fin 1), Sum.inr ((3 : Fin 13), (1 : Fin 8))))) =
+          Sum.inr (Sum.inr ((0 : Fin 1), Sum.inr ((3 : Fin 13), (1 : Fin 8))))
+      simp only [CSSLayerInput.canonGridDefectEdge, hy3]
+      rfl
+  change ((Finset.univ : Finset (Fin 5)).image (fun leg => input.canonGridDefectEdge layout
+      (layout.zLineFiveLegEdge (nX := 1) (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false leg)) ∩
+    (Finset.univ : Finset (Fin 4)).image (fun leg =>
+      input.canonGridDefectEdge layout (layerGridFaceEdge face leg))).card = 1
+  simp only [hface]
+  change ((Finset.univ.image star) ∩ (Finset.univ.image normalizedFace)).card = 1
+  decide
+
+lemma grid_zLine_inward_face_overlap {k : ℕ}
+    (input : CSSLayerInput 2 k 1 1) (hactive : input.zCheck 0 0 = 1) :
+    (by
+      let layout : LayerGridLayout := ⟨4, le_rfl⟩
+      exact ((Finset.univ : Finset (Fin 5)).image (fun leg =>
+        input.canonGridDefectEdge layout
+          (layout.zLineFiveLegEdge (nX := 1) (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false leg)) ∩
+        (Finset.univ : Finset (Fin 4)).image (fun leg =>
+          input.canonGridDefectEdge layout (layerGridFaceEdge
+            (LayerGridFaceCell.yz (n := 2) (nX := 1) (nZ := 1)
+              (0 : Fin 1) (4 : Fin 12) (1 : Fin 8)) leg))).card = 2) := by
+  let layout : LayerGridLayout := ⟨4, le_rfl⟩
+  let star := layout.zLineFiveLegEdge (nX := 1) (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false
+  let face : LayerGridFaceCell layout 2 1 1 := .yz 0 (4 : Fin 12) (1 : Fin 8)
+  let normalizedFace : Fin 4 → LayerGridSurfaceEdge layout 2 1 1 := fun leg =>
+    match leg.val with
+    | 0 => Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (1 : Fin 9))))
+    | 1 => Sum.inr (Sum.inr ((0 : Fin 1), Sum.inr ((5 : Fin 13), (1 : Fin 8))))
+    | 2 => Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (2 : Fin 9))))
+    | _ => Sum.inl ((0 : Fin 2), Sum.inr ((4 : Fin 9), (1 : Fin 8)))
+  have hz1 : layout.indexAtVertex (count := 1) (1 : Fin 9) = none :=
+    layout.indexAtVertex_lt_spacing _ (by decide)
+  have hz2 : layout.indexAtVertex (count := 1) (2 : Fin 9) = none :=
+    layout.indexAtVertex_lt_spacing _ (by decide)
+  have hy5 : layout.indexAtVertex (count := 2) (5 : Fin 13) = none := by
+    apply (layout.indexAtVertex_eq_none_iff (count := 2) (5 : Fin 13)).mpr
+    intro qubit heq
+    have hvalue := congrArg Fin.val heq
+    fin_cases qubit <;>
+      norm_num [LayerGridLayout.layerCoordinate, LayerGridLayout.extent, layout] at hvalue
+  have hface (leg : Fin 4) : input.canonGridDefectEdge layout (layerGridFaceEdge face leg) =
+      normalizedFace leg := by
+    fin_cases leg
+    · change input.canonGridDefectEdge layout
+        (Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (1 : Fin 9))))) =
+          Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (1 : Fin 9))))
+      simp only [CSSLayerInput.canonGridDefectEdge, hz1]
+      rfl
+    · change input.canonGridDefectEdge layout
+        (Sum.inr (Sum.inr ((0 : Fin 1), Sum.inr ((5 : Fin 13), (1 : Fin 8))))) =
+          Sum.inr (Sum.inr ((0 : Fin 1), Sum.inr ((5 : Fin 13), (1 : Fin 8))))
+      simp only [CSSLayerInput.canonGridDefectEdge, hy5]
+      rfl
+    · change input.canonGridDefectEdge layout
+        (Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (2 : Fin 9))))) =
+          Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (2 : Fin 9))))
+      simp only [CSSLayerInput.canonGridDefectEdge, hz2]
+      rfl
+    · exact input.canonGridDefectEdge_z_active layout (0 : Fin 1) (0 : Fin 2) (1 : Fin 8)
+        hactive
+  change ((Finset.univ : Finset (Fin 5)).image (fun leg => input.canonGridDefectEdge layout
+      (layout.zLineFiveLegEdge (nX := 1) (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false leg)) ∩
+    (Finset.univ : Finset (Fin 4)).image (fun leg =>
+      input.canonGridDefectEdge layout (layerGridFaceEdge face leg))).card = 2
+  simp only [hface]
+  change ((Finset.univ.image star) ∩ (Finset.univ.image normalizedFace)).card = 2
+  decide
+
+lemma grid_zLine_opposite_face_not_commuting {k : ℕ}
+    (input : CSSLayerInput 2 k 1 1) (hactive : input.zCheck 0 0 = 1) :
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    input.gridZLineFiveLegXStar layout (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false *
+        input.gridLocalZPlaquette layout (.yz 0 (3 : Fin 12) (1 : Fin 8)) Finset.univ ≠
+      input.gridLocalZPlaquette layout (.yz 0 (3 : Fin 12) (1 : Fin 8)) Finset.univ *
+        input.gridZLineFiveLegXStar layout (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false := by
+  dsimp only
+  intro hcommute
+  change input.gridXPauli _ _ * input.gridZPauli _ _ =
+    input.gridZPauli _ _ * input.gridXPauli _ _ at hcommute
+  have heven := (input.gridPaulis_commute_iff _ _ _).mp hcommute
+  rw [input.gridPhysicalOverlap_card] at heven
+  simp only [Finset.image_image, Function.comp_def] at heven
+  with_unfolding_all rw [grid_zLine_opposite_face_odd_overlap input hactive] at heven
+  exact (by decide : ¬ Even (1 : ℕ)) heven
+
+lemma grid_zLine_inward_face_commuting {k : ℕ}
+    (input : CSSLayerInput 2 k 1 1) (hactive : input.zCheck 0 0 = 1) :
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    input.gridZLineFiveLegXStar layout (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false *
+        input.gridLocalZPlaquette layout (.yz 0 (4 : Fin 12) (1 : Fin 8)) Finset.univ =
+      input.gridLocalZPlaquette layout (.yz 0 (4 : Fin 12) (1 : Fin 8)) Finset.univ *
+        input.gridZLineFiveLegXStar layout (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false := by
+  dsimp only
+  change input.gridXPauli _ _ * input.gridZPauli _ _ =
+    input.gridZPauli _ _ * input.gridXPauli _ _
+  apply (input.gridPaulis_commute_iff _ _ _).mpr
+  rw [input.gridPhysicalOverlap_card]
+  simp only [Finset.image_image, Function.comp_def]
+  with_unfolding_all rw [grid_zLine_inward_face_overlap input hactive]
+  exact ⟨1, rfl⟩
+
+lemma gridSpanZPlaquetteCandidate_inward_face {k : ℕ}
+    (input : CSSLayerInput 2 k 1 1) (hfirst : input.zCheck 0 0 = 1)
+    (hlast : input.zCheck 0 1 = 1) :
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    input.gridSpanZPlaquetteCandidate layout (.yz 0 (4 : Fin 12) (1 : Fin 8)) =
+      some (input.gridLocalZPlaquette layout (.yz 0 (4 : Fin 12) (1 : Fin 8)) Finset.univ) := by
+  apply (input.gridSpanZPlaquetteCandidate_eq_some_iff _ _ _).mpr
+  refine ⟨?_, rfl⟩
+  exact ⟨(0 : Fin 2), (1 : Fin 2), hfirst, hlast, by decide, by decide⟩
 
 lemma CSSLayerInput.physicalFaceEdge_injective {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (plane : LayerFacePlane)

@@ -105,19 +105,30 @@ input CSS code.
   last orientations. Name point intersections and single incidences as
   unresolved states, prove they are exactly the absent-candidate cases, and
   prove every emitted candidate's weight and type. This is not a complete
-  termination or replacement rule. Compatible Z checks and both adjacent
-  normalized yz faces remain to be verified; an unsuccessful finite overlap
-  probe was removed rather than retaining an unproved theorem.
+  termination or replacement rule. The finite endpoint adjacency tests below
+  are verified, but general coupling and replacement laws remain incomplete.
 - Migrate all three ordinary planar-face orientations to the spaced
   actual-owner carrier. Prove exact ambient recovery, spatial/physical leg
   injectivity, selected-leg weight preservation, phase-zero Z type, the
   weight-four bound, and full-face weight four. These are not defect coupling
   plaquettes and do not establish cross-commutation with the line stars.
 - Prove prefix-padding coordinates have no real owner and physical overlap
-  cardinalities equal canonical-image overlap cardinalities. A second
-  opposite-face probe still failed within the local proof-repair limit and
-  was removed, along with its temporary elaboration option. The adjacency
-  obligation remains open in the plan.
+  cardinalities equal canonical-image overlap cardinalities. Exact absence
+  of embedded owners and a prefix-star fixed-point law are also proved.
+- Register structural computable equality for spaced owned edges. Resolve
+  the earlier failed adjacency probe by explicit per-leg normalization and
+  kernel `decide`: the finite forward-star fixture has one shared edge with
+  the outward ordinary yz face and two with the inward face. Prove physical
+  noncommutation outward and commutation inward. No custom axiom, placeholder,
+  native evaluation, or elaboration option is introduced.
+- Gate ordinary check-sheet face candidates to the span of active input
+  incidences, excluding cells outside the endpoints and prefix padding.
+  Singleton supports have no ordinary-face interval. Prove exact candidate
+  emission/absence, weight four, and Z type; verify outward suppression and
+  inward retention in the fixture. The gate does not remove unused physical
+  qubits or define middle coupling, boundary/point replacements, or global CSS.
+  The roadmap now requires coupling-qubit identity validation at middle
+  junctions before promoting any gluing convention to the final constructor.
 - Build separate same-type surface X/Z stabilizer groups that include those
   standard boundary candidates. Cross-sector commutation with line/point defect
   checks remains unproved because those checks are not yet encoded.

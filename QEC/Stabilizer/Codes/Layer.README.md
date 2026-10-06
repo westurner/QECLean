@@ -124,9 +124,26 @@ Implemented in `Layer.lean`:
 - `indexAtVertex_lt_spacing` excludes real owners from prefix padding.
   `gridPhysicalOverlap_card` equates physical overlap cardinality with that
   of canonical owned-edge images. It avoids arbitrary qubit numbering but
-  does not equate normalized overlap with pre-gluing overlap. Retrying the
-  opposite-face probe using these primitives still hit elaboration/recursion
-  limits; the probe and its temporary elaboration option were removed.
+  does not equate normalized overlap with pre-gluing overlap.
+- The previously failed opposite-face probe is now proved. A structural,
+  computable `DecidableEq` instance for `LayerGridSurfaceEdge` enables the
+  closed overlap computations using kernel `decide`, without `native_decide`
+  or an elaboration option. Exact owner-lookup absence and a prefix-star
+  fixed-point law support explicit per-leg normalization.
+- For the two-data-layer, one-X/one-Z spaced fixture, the forward five-leg
+  z star has one shared canonical edge with the outward ordinary yz face
+  and two with the inward face. The corresponding physical Paulis do not
+  commute outward and do commute inward. These are conditional finite local
+  tests, not constructed input/output code examples or general endpoint laws.
+- `gridCheckCellWithinSpan` and `gridFaceWithinCheckSpan` describe ordinary
+  xy/yz face candidates between active data-layer coordinates. Cells before
+  or after the support and in prefix padding are excluded. Singleton support
+  has no interval of ordinary faces; this does not solve its defect checks.
+  `gridSpanZPlaquetteCandidate` has exact emission/absence laws, weight four,
+  and phase-zero Z type. In the fixture it suppresses the incompatible outward
+  face and retains the commuting inward face when both endpoints are active.
+  The gate does not truncate the physical-qubit carrier, repair middle
+  coupling checks, or provide a total replacement assembly.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -253,7 +270,11 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   edge. Spaced actual-owner faces now recover the ambient geometry in all
   three planes, with exact selected-leg weights and phase-zero Z type.
   Prefix-padding lookup and canonical-image overlap computation are proved.
-  Add defect-specific boundary and coupling plaquette supports. Specify the
+  An incidence-derived span gate now excludes ordinary faces outside check
+  support endpoints, with explicit singleton and prefix-padding laws. Its
+  finite endpoint fixture verifies outward suppression and inward retention.
+  Integrate actual check-sheet/qubit truncation and defect-specific boundary
+  and coupling plaquette supports. Specify the
   actual terminated direction for first/last incidences from the diagrams;
   do not infer it from the junction's axis name. Handle the existing `single`
   incidence case and degenerate dimensions explicitly. Record which surface
@@ -269,11 +290,15 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   connected to actual first/middle/last incidence labels and excludes X-layer
   point intersections. `single` remains an explicit unresolved state, not a
   first-incidence alias. Establish termination and compatible Z checks before
-  treating it as a replacement template. Verify both adjacent yz faces after
-  gluing, including the face opposite the selected y leg; the attempted finite
-  overlap probe did not complete and was removed, so no new adjacent-face
-  commutation or obstruction theorem is claimed. Do not fabricate a CSS input whose generator
-  counts equal the larger grid dimensions.
+  treating it as a replacement template. Both adjacent yz faces are now
+  verified in the finite forward-star fixture: the outward face has odd
+  normalized overlap and is suppressed by the span gate; the retained inward
+  face has overlap two and commutes. Generalize this to arbitrary endpoints
+  and reflected last incidences. The middle-junction diagram includes a
+  distinct modified Z support: establish its coupling-qubit identities before
+  deciding which coincident copies the canonical map may merge. A span gate
+  alone is not a middle-junction repair. Do not fabricate a CSS input whose
+  generator counts equal the larger grid dimensions.
 4. **Point templates and total slots.** Factor the ten bulk and twelve
   boundary cases through the local leg/face combinators. Implement total
   vertex/cell classification and dependent star/plaquette slots so each
