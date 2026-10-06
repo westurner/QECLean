@@ -115,6 +115,18 @@ Implemented in `Layer.lean`:
   Candidate absence is proved equivalent to those states; every emitted
   candidate has weight five and X type. This is not a total replacement rule:
   termination, compatible Z checks, and point/boundary replacements remain open.
+- `LayerGridFaceCell` and `layerGridFaceEdge` migrate ordinary planar faces
+  in all three orientations to real owners on the spaced carrier. Their
+  ambient image recovers `layerFaceEdge`, and their spatially distinct legs
+  remain distinct after normalization. `gridLocalZPlaquette` preserves the
+  selected-leg count, has phase-zero Z type and weight at most four, and full
+  faces have weight four. These are ordinary faces, not coupling templates.
+- `indexAtVertex_lt_spacing` excludes real owners from prefix padding.
+  `gridPhysicalOverlap_card` equates physical overlap cardinality with that
+  of canonical owned-edge images. It avoids arbitrary qubit numbering but
+  does not equate normalized overlap with pre-gluing overlap. Retrying the
+  opposite-face probe using these primitives still hit elaboration/recursion
+  limits; the probe and its temporary elaboration option were removed.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -238,7 +250,10 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   Z-plaquette weights are also implemented. Standard rough/smooth boundary
   legs, their projection and weight-three laws, and normalized corner CSS
   regressions are implemented. Rough plaquettes omit the outer horizontal
-  edge. Add defect-specific boundary and coupling plaquette supports. Specify the
+  edge. Spaced actual-owner faces now recover the ambient geometry in all
+  three planes, with exact selected-leg weights and phase-zero Z type.
+  Prefix-padding lookup and canonical-image overlap computation are proved.
+  Add defect-specific boundary and coupling plaquette supports. Specify the
   actual terminated direction for first/last incidences from the diagrams;
   do not infer it from the junction's axis name. Handle the existing `single`
   incidence case and degenerate dimensions explicitly. Record which surface

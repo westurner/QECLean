@@ -108,6 +108,16 @@ input CSS code.
   termination or replacement rule. Compatible Z checks and both adjacent
   normalized yz faces remain to be verified; an unsuccessful finite overlap
   probe was removed rather than retaining an unproved theorem.
+- Migrate all three ordinary planar-face orientations to the spaced
+  actual-owner carrier. Prove exact ambient recovery, spatial/physical leg
+  injectivity, selected-leg weight preservation, phase-zero Z type, the
+  weight-four bound, and full-face weight four. These are not defect coupling
+  plaquettes and do not establish cross-commutation with the line stars.
+- Prove prefix-padding coordinates have no real owner and physical overlap
+  cardinalities equal canonical-image overlap cardinalities. A second
+  opposite-face probe still failed within the local proof-repair limit and
+  was removed, along with its temporary elaboration option. The adjacency
+  obligation remains open in the plan.
 - Build separate same-type surface X/Z stabilizer groups that include those
   standard boundary candidates. Cross-sector commutation with line/point defect
   checks remains unproved because those checks are not yet encoded.

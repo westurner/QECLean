@@ -2310,6 +2310,18 @@ lemma LayerGridLayout.indexAtVertex_layerCoordinate (layout : LayerGridLayout)
   apply Fin.castSucc_injective
   exact (Classical.choose_spec hexists).symm
 
+lemma LayerGridLayout.indexAtVertex_lt_spacing (layout : LayerGridLayout) {count : ℕ}
+    (coordinate : Fin (layout.extent count + 1)) (hsmall : coordinate.val < layout.spacing) :
+    layout.indexAtVertex coordinate = none := by
+  cases hindex : layout.indexAtVertex coordinate with
+  | none => rfl
+  | some index =>
+      have hcoordinate := congrArg Fin.val (layout.indexAtVertex_spec coordinate index hindex)
+      have hlower := Nat.mul_le_mul_left layout.spacing (Nat.succ_le_succ (Nat.zero_le index.val))
+      simp only [Nat.succ_eq_add_one, Nat.zero_add, Nat.mul_one] at hlower
+      simp only [Fin.val_castSucc, LayerGridLayout.layerCoordinate] at hcoordinate
+      omega
+
 def LayerGridLayout.edgePosition (layout : LayerGridLayout) {n nX nZ : ℕ}
     (edge : LayerGridSurfaceEdge layout n nX nZ) :
     LayerLatticeEdge (layout.extent n) (layout.extent nX) (layout.extent nZ) :=
@@ -2583,6 +2595,29 @@ lemma CSSLayerInput.gridPaulis_commute_iff {n k nX nZ : ℕ}
           input.gridPhysicalSupport layout zSupport).card) := by
   classical
   exact numberedSupportPauli_commutes_iff _ _ _
+
+lemma CSSLayerInput.gridPhysicalOverlap_card {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (first second : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
+    (by
+      classical
+      exact (input.gridPhysicalSupport layout first ∩
+        input.gridPhysicalSupport layout second).card =
+          (first.image (input.canonGridDefectEdge layout) ∩
+            second.image (input.canonGridDefectEdge layout)).card) := by
+  classical
+  have hval : Function.Injective
+      (Subtype.val : LayerGridPhysicalEdge input layout → LayerGridSurfaceEdge layout n nX nZ) :=
+    Subtype.val_injective
+  calc
+    _ = ((input.gridPhysicalSupport layout first ∩ input.gridPhysicalSupport layout second).image
+        (Subtype.val : LayerGridPhysicalEdge input layout →
+          LayerGridSurfaceEdge layout n nX nZ)).card :=
+      (Finset.card_image_of_injective _ hval).symm
+    _ = _ := by
+      rw [Finset.image_inter _ _ hval]
+      simp only [gridPhysicalSupport, Finset.image_image]
+      rfl
 
 abbrev LayerHalfStarLeg := Fin 4 ⊕ (Fin 4 ⊕ Fin 4)
 
@@ -2902,6 +2937,104 @@ lemma layerFaceEdge_injective {n nX nZ : ℕ} (plane : LayerFacePlane)
   intro first second heq
   fin_cases first <;> fin_cases second <;> cases plane <;>
     simp_all [layerFaceEdge, xyLayerYEdge, yzLayerYEdge, Fin.ext_iff]
+
+inductive LayerGridFaceCell (layout : LayerGridLayout) (n nX nZ : ℕ)
+  | xz (qubit : Fin n) (xCell : Fin (layout.extent nZ)) (zCell : Fin (layout.extent nX))
+  | xy (check : Fin nX) (xCell : Fin (layout.extent nZ)) (yCell : Fin (layout.extent n))
+  | yz (check : Fin nZ) (yCell : Fin (layout.extent n)) (zCell : Fin (layout.extent nX))
+
+def LayerGridFaceCell.plane {layout : LayerGridLayout} {n nX nZ : ℕ} :
+    LayerGridFaceCell layout n nX nZ → LayerFacePlane
+  | .xz _ _ _ => .xz
+  | .xy _ _ _ => .xy
+  | .yz _ _ _ => .yz
+
+def LayerGridFaceCell.ambientCell {layout : LayerGridLayout} {n nX nZ : ℕ} :
+    LayerGridFaceCell layout n nX nZ →
+      LayerFaceCell (layout.extent n) (layout.extent nX) (layout.extent nZ)
+  | .xz qubit xCell zCell => ⟨xCell, layout.layerCoordinate qubit, zCell⟩
+  | .xy check xCell yCell => ⟨xCell, yCell, layout.layerCoordinate check⟩
+  | .yz check yCell zCell => ⟨layout.layerCoordinate check, yCell, zCell⟩
+
+def layerGridFaceEdge {layout : LayerGridLayout} {n nX nZ : ℕ}
+    (cell : LayerGridFaceCell layout n nX nZ) : Fin 4 → LayerGridSurfaceEdge layout n nX nZ :=
+  match cell with
+  | .xz qubit xCell zCell => fun leg =>
+      match leg.val with
+      | 0 => Sum.inl (qubit, Sum.inl (xCell, zCell.castSucc))
+      | 1 => Sum.inl (qubit, Sum.inr (xCell.succ, zCell))
+      | 2 => Sum.inl (qubit, Sum.inl (xCell, zCell.succ))
+      | _ => Sum.inl (qubit, Sum.inr (xCell.castSucc, zCell))
+  | .xy check xCell yCell => fun leg =>
+      match leg.val with
+      | 0 => Sum.inr (Sum.inl (check, Sum.inl (xCell, yCell.castSucc)))
+      | 1 => Sum.inr (Sum.inl (check, Sum.inr (xCell.succ, yCell)))
+      | 2 => Sum.inr (Sum.inl (check, Sum.inl (xCell, yCell.succ)))
+      | _ => Sum.inr (Sum.inl (check, Sum.inr (xCell.castSucc, yCell)))
+  | .yz check yCell zCell => fun leg =>
+      match leg.val with
+      | 0 => Sum.inr (Sum.inr (check, Sum.inl (yCell, zCell.castSucc)))
+      | 1 => Sum.inr (Sum.inr (check, Sum.inr (yCell.succ, zCell)))
+      | 2 => Sum.inr (Sum.inr (check, Sum.inl (yCell, zCell.succ)))
+      | _ => Sum.inr (Sum.inr (check, Sum.inr (yCell.castSucc, zCell)))
+
+lemma layerGridFaceEdge_ambient {layout : LayerGridLayout} {n nX nZ : ℕ}
+    (cell : LayerGridFaceCell layout n nX nZ) (leg : Fin 4) :
+    layout.ambientEdge (layerGridFaceEdge cell leg) =
+      layerFaceEdge cell.plane cell.ambientCell leg := by
+  cases cell <;> fin_cases leg <;> rfl
+
+lemma layerGridFaceEdge_position_injective {layout : LayerGridLayout} {n nX nZ : ℕ}
+    (cell : LayerGridFaceCell layout n nX nZ) :
+    Function.Injective (fun leg => layout.edgePosition (layerGridFaceEdge cell leg)) := by
+  intro first second heq
+  fin_cases first <;> fin_cases second <;> cases cell <;>
+    simp_all [layerGridFaceEdge, LayerGridLayout.edgePosition, LayerGridLayout.ambientEdge,
+      layerSurfaceEdgePosition, Fin.ext_iff]
+
+noncomputable def CSSLayerInput.gridLocalZPlaquette {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (cell : LayerGridFaceCell layout n nX nZ) (legs : Finset (Fin 4)) :
+    NQubitPauliGroupElement (Fintype.card (LayerGridPhysicalEdge input layout)) := by
+  classical
+  exact input.gridZPauli layout (legs.image (layerGridFaceEdge cell))
+
+lemma CSSLayerInput.gridLocalZPlaquette_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (cell : LayerGridFaceCell layout n nX nZ) (legs : Finset (Fin 4)) :
+    NQubitPauliGroupElement.weight (input.gridLocalZPlaquette layout cell legs) = legs.card := by
+  classical
+  rw [gridLocalZPlaquette, gridZPauli_weight]
+  simp only [gridPhysicalSupport, Finset.image_image]
+  exact Finset.card_image_of_injective _
+    (input.gridPhysicalEdge_injective_of_position layout _
+      (layerGridFaceEdge_position_injective cell))
+
+lemma CSSLayerInput.gridLocalZPlaquette_isZType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (cell : LayerGridFaceCell layout n nX nZ) (legs : Finset (Fin 4)) :
+    NQubitPauliGroupElement.IsZTypeElement (input.gridLocalZPlaquette layout cell legs) := by
+  classical
+  refine ⟨rfl, ?_⟩
+  intro edge
+  change PauliOperator.IsZType
+    (if (input.gridPhysicalEdgeEquiv layout).symm edge ∈ input.gridPhysicalSupport layout
+        (legs.image (layerGridFaceEdge cell)) then PauliOperator.Z else PauliOperator.I)
+  split_ifs <;> simp [PauliOperator.IsZType]
+
+lemma CSSLayerInput.gridLocalZPlaquette_weight_le_four {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (cell : LayerGridFaceCell layout n nX nZ) (legs : Finset (Fin 4)) :
+    NQubitPauliGroupElement.weight (input.gridLocalZPlaquette layout cell legs) ≤ 4 := by
+  rw [input.gridLocalZPlaquette_weight]
+  exact (Finset.card_le_univ legs).trans_eq (Fintype.card_fin 4)
+
+lemma CSSLayerInput.gridLocalZPlaquette_univ_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (cell : LayerGridFaceCell layout n nX nZ) :
+    NQubitPauliGroupElement.weight (input.gridLocalZPlaquette layout cell Finset.univ) = 4 := by
+  rw [input.gridLocalZPlaquette_weight]
+  simp
 
 lemma CSSLayerInput.physicalFaceEdge_injective {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (plane : LayerFacePlane)
