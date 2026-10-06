@@ -1623,6 +1623,33 @@ lemma CSSLayerInput.zJunctionMiddleZPlaquetteCandidate_eq_none
     input.zJunctionMiddleZPlaquetteCandidate junction xCoord = none := by
   simp [zJunctionMiddleZPlaquetteCandidate, hposition]
 
+/-- The paper adds x-junction plaquette checks for first and middle incidences. -/
+noncomputable def CSSLayerInput.xJunctionFirstOrMiddleZPlaquetteCandidate
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (junction : XJunction input) (zCoord : Fin (nZ - 1)) :
+    Option (NQubitPauliGroupElement (LayerOutputSize n nX nZ)) :=
+  if input.xJunctionPosition junction = .first ∨
+      input.xJunctionPosition junction = .middle then
+    some (input.xJunctionZPlaquette junction zCoord)
+  else none
+
+lemma CSSLayerInput.xJunctionFirstOrMiddleZPlaquetteCandidate_eq_some
+  {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (junction : XJunction input) (zCoord : Fin (nZ - 1))
+    (hposition : input.xJunctionPosition junction = .first ∨
+      input.xJunctionPosition junction = .middle) :
+    input.xJunctionFirstOrMiddleZPlaquetteCandidate junction zCoord =
+      some (input.xJunctionZPlaquette junction zCoord) := by
+  simp [xJunctionFirstOrMiddleZPlaquetteCandidate, hposition]
+
+lemma CSSLayerInput.xJunctionFirstOrMiddleZPlaquetteCandidate_eq_none
+    {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (junction : XJunction input) (zCoord : Fin (nZ - 1))
+    (hposition : input.xJunctionPosition junction ≠ .first ∧
+      input.xJunctionPosition junction ≠ .middle) :
+    input.xJunctionFirstOrMiddleZPlaquetteCandidate junction zCoord = none := by
+  simp [xJunctionFirstOrMiddleZPlaquetteCandidate, hposition.1, hposition.2]
+
 lemma CSSLayerInput.xJunctionXStar_weight {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (junction : XJunction input)
     (zCoord : Fin (nZ - 1)) :

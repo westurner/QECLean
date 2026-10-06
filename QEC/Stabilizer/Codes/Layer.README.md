@@ -42,8 +42,9 @@ Implemented in `Layer.lean`:
   junctions, with first/middle/last orientation choosing the forward data cell
   except at the last incidence. The candidate Paulis are type-correct and have
   proved weight four; they are not yet organized into the paper's case-specific
-  check lists or replacement rules. The extra z-junction Z plaquette is gated
-  to the middle case, matching the paper's line-defect description.
+  check lists or replacement rules. The extra x-junction Z plaquette is gated
+  to first/middle cases, and the extra z-junction Z plaquette to the middle
+  case, matching the paper's line-defect descriptions.
 - Interior nontrivial-y cell candidates require two consecutive edges in a
   matched segment. Their X/Z lifts are type-correct with weights four and five;
   their cross-sector overlap has not been proved even, so they remain outside

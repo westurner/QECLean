@@ -117,8 +117,9 @@ complement are disjoint and exhaustive, and the line index includes both for
 point-location detection. The modified y-junction Pauli checks and all
 point-defect supports are still missing. Interior nontrivial-y X/Z support
 candidates now have type and weight proofs, but their cross-sector overlap is
-not yet proved even and they are not integrated into the check lists. The ten
-bulk and twelve boundary point-defect patterns are now indexed as a 22-case
+not yet proved even and they are not integrated into the check lists. Plaquette
+applicability is now gated to first/middle x incidences and middle z incidences.
+The ten bulk and twelve boundary point-defect patterns are now indexed as a 22-case
 taxonomy. Boundary metadata marks the two extra-plaquette cases and six
 modified-star cases; diagrammed supports and adjacent-check replacements remain
 unimplemented. Its exact finite
