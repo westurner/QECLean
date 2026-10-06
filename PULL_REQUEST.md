@@ -96,6 +96,18 @@ input CSS code.
   its count, and derive logical capacity by a data-qubit injection, including
   empty check sectors. Do not inflate generator counts to grid dimensions.
   Template migration and final output assembly remain unfinished.
+- Lift spaced actual-owner supports to X/Z Paulis with exact normalized
+  weights and an even-overlap commutation criterion. Spatially injective
+  local maps remain injective on the fixed-point carrier.
+- Migrate the five-leg z-line X-star to original data/Z-check owners, prove
+  exact ambient recovery, normalized weight five, and phase-zero X type.
+  Dispatch actual ordered incidences with forward first/middle and reflected
+  last orientations. Name point intersections and single incidences as
+  unresolved states, prove they are exactly the absent-candidate cases, and
+  prove every emitted candidate's weight and type. This is not a complete
+  termination or replacement rule. Compatible Z checks and both adjacent
+  normalized yz faces remain to be verified; an unsuccessful finite overlap
+  probe was removed rather than retaining an unproved theorem.
 - Build separate same-type surface X/Z stabilizer groups that include those
   standard boundary candidates. Cross-sector commutation with line/point defect
   checks remains unproved because those checks are not yet encoded.

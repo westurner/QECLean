@@ -2520,6 +2520,70 @@ lemma CSSLayerInput.gridPhysical_logical_capacity {n k nX nZ : ℕ}
     simpa only [Fintype.card_fin] using hcard
   exact input.logicalQubits_le_physical.trans hphysical
 
+lemma CSSLayerInput.gridPhysicalEdge_injective_of_position {n k nX nZ : ℕ} {α : Type*}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (locate : α → LayerGridSurfaceEdge layout n nX nZ)
+    (hposition : Function.Injective (fun value => layout.edgePosition (locate value))) :
+    Function.Injective (fun value => input.gridPhysicalEdge layout (locate value)) := by
+  intro first second heq
+  apply hposition
+  have hcanon := congrArg Subtype.val heq
+  change input.canonGridDefectEdge layout (locate first) =
+    input.canonGridDefectEdge layout (locate second) at hcanon
+  have hspatial := congrArg layout.edgePosition hcanon
+  simpa only [input.canonGridDefectEdge_position] using hspatial
+
+noncomputable def CSSLayerInput.gridPhysicalSupport {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (support : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
+    Finset (LayerGridPhysicalEdge input layout) := by
+  classical
+  exact support.image (input.gridPhysicalEdge layout)
+
+noncomputable def CSSLayerInput.gridXPauli {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (support : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
+    NQubitPauliGroupElement (Fintype.card (LayerGridPhysicalEdge input layout)) := by
+  classical
+  exact numberedSupportPauli (input.gridPhysicalEdgeEquiv layout) PauliOperator.X
+    (input.gridPhysicalSupport layout support)
+
+noncomputable def CSSLayerInput.gridZPauli {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (support : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
+    NQubitPauliGroupElement (Fintype.card (LayerGridPhysicalEdge input layout)) := by
+  classical
+  exact numberedSupportPauli (input.gridPhysicalEdgeEquiv layout) PauliOperator.Z
+    (input.gridPhysicalSupport layout support)
+
+lemma CSSLayerInput.gridXPauli_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (support : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
+    NQubitPauliGroupElement.weight (input.gridXPauli layout support) =
+      (input.gridPhysicalSupport layout support).card := by
+  classical
+  exact weight_numberedSupportPauli _ _ _ (by decide)
+
+lemma CSSLayerInput.gridZPauli_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (support : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
+    NQubitPauliGroupElement.weight (input.gridZPauli layout support) =
+      (input.gridPhysicalSupport layout support).card := by
+  classical
+  exact weight_numberedSupportPauli _ _ _ (by decide)
+
+lemma CSSLayerInput.gridPaulis_commute_iff {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (xSupport zSupport : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
+    input.gridXPauli layout xSupport * input.gridZPauli layout zSupport =
+        input.gridZPauli layout zSupport * input.gridXPauli layout xSupport ↔
+      (by
+        classical
+        exact Even (input.gridPhysicalSupport layout xSupport ∩
+          input.gridPhysicalSupport layout zSupport).card) := by
+  classical
+  exact numberedSupportPauli_commutes_iff _ _ _
+
 abbrev LayerHalfStarLeg := Fin 4 ⊕ (Fin 4 ⊕ Fin 4)
 
 lemma card_layerHalfStarLeg : Fintype.card LayerHalfStarLeg = 12 := by
@@ -2697,6 +2761,92 @@ lemma CSSLayerInput.zLineFiveLegXStar_isXType {n k nX nZ : ℕ}
     NQubitPauliGroupElement.IsXTypeElement (input.zLineFiveLegXStar vertex isLast) := by
   classical
   exact input.physicalXPauli_isXType _
+
+def LayerGridLayout.zLineVertex (layout : LayerGridLayout) {n nX nZ : ℕ}
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX - 1)) :
+    LayerInteriorStarVertex (layout.extent n) (layout.extent nX) (layout.extent nZ) where
+  xCell := layout.interiorCell check
+  yCell := layout.interiorCell qubit
+  zCell := zCell
+
+def LayerGridLayout.zLineFiveLegEdge (layout : LayerGridLayout) {n nX nZ : ℕ}
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX - 1))
+    (isLast : Bool) (leg : Fin 5) : LayerGridSurfaceEdge layout n nX nZ :=
+  match leg.val with
+  | 0 => Sum.inl (qubit, Sum.inl
+      (interiorCast (layout.interiorCell check), interiorSuccVertex zCell))
+  | 1 => Sum.inl (qubit, Sum.inl
+      (interiorSucc (layout.interiorCell check), interiorSuccVertex zCell))
+  | 2 => Sum.inl (qubit, Sum.inr
+      ((layout.layerCoordinate check).castSucc, interiorCast zCell))
+  | 3 => Sum.inl (qubit, Sum.inr
+      ((layout.layerCoordinate check).castSucc, interiorSucc zCell))
+  | _ => Sum.inr (Sum.inr (check, Sum.inl
+      ((if isLast then interiorCast (layout.interiorCell qubit)
+        else interiorSucc (layout.interiorCell qubit)), interiorSuccVertex zCell)))
+
+lemma LayerGridLayout.zLineFiveLegEdge_ambient (layout : LayerGridLayout) {n nX nZ : ℕ}
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX - 1))
+    (isLast : Bool) (leg : Fin 5) :
+    layout.ambientEdge (layout.zLineFiveLegEdge qubit check zCell isLast leg) =
+      layerZLineFiveLegEdge (layout.zLineVertex qubit check zCell) isLast leg := by
+  fin_cases leg <;> cases isLast <;>
+    simp [zLineFiveLegEdge, ambientEdge, layerZLineFiveLegEdge, layerHalfStarEdge,
+      zLineVertex, yzLayerYEdge, interiorSuccVertex, layout.interiorSucc_layerCoordinate]
+
+lemma LayerGridLayout.zLineFiveLegEdge_position_injective (layout : LayerGridLayout)
+    {n nX nZ : ℕ} (qubit : Fin n) (check : Fin nZ)
+    (zCell : Fin (layout.extent nX - 1)) (isLast : Bool) :
+    Function.Injective (fun leg => layout.edgePosition
+      (layout.zLineFiveLegEdge qubit check zCell isLast leg)) := by
+  intro first second heq
+  apply layerZLineFiveLegEdge_position_injective (layout.zLineVertex qubit check zCell) isLast
+  change layerSurfaceEdgePosition
+      (layout.ambientEdge (layout.zLineFiveLegEdge qubit check zCell isLast first)) =
+    layerSurfaceEdgePosition
+      (layout.ambientEdge (layout.zLineFiveLegEdge qubit check zCell isLast second)) at heq
+  simpa only [layout.zLineFiveLegEdge_ambient] using heq
+
+noncomputable def CSSLayerInput.gridZLineFiveLegXStar {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX - 1))
+    (isLast : Bool) :
+    NQubitPauliGroupElement (Fintype.card (LayerGridPhysicalEdge input layout)) := by
+  classical
+  exact input.gridXPauli layout
+    (Finset.univ.image (layout.zLineFiveLegEdge qubit check zCell isLast))
+
+lemma CSSLayerInput.gridZLineFiveLegXStar_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX - 1))
+    (isLast : Bool) :
+    NQubitPauliGroupElement.weight
+        (input.gridZLineFiveLegXStar layout qubit check zCell isLast) = 5 := by
+  classical
+  rw [gridZLineFiveLegXStar, gridXPauli_weight]
+  simp only [gridPhysicalSupport, Finset.image_image]
+  change ((Finset.univ : Finset (Fin 5)).image
+    (fun leg => input.gridPhysicalEdge layout
+      (layout.zLineFiveLegEdge qubit check zCell isLast leg))).card = 5
+  rw [Finset.card_image_of_injective _
+    (input.gridPhysicalEdge_injective_of_position layout _
+      (layout.zLineFiveLegEdge_position_injective qubit check zCell isLast))]
+  simp
+
+lemma CSSLayerInput.gridZLineFiveLegXStar_isXType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX - 1))
+    (isLast : Bool) :
+    NQubitPauliGroupElement.IsXTypeElement
+      (input.gridZLineFiveLegXStar layout qubit check zCell isLast) := by
+  classical
+  refine ⟨rfl, ?_⟩
+  intro edge
+  change PauliOperator.IsXType
+    (if (input.gridPhysicalEdgeEquiv layout).symm edge ∈ input.gridPhysicalSupport layout
+        (Finset.univ.image (layout.zLineFiveLegEdge qubit check zCell isLast))
+      then PauliOperator.X else PauliOperator.I)
+  split_ifs <;> simp [PauliOperator.IsXType]
 
 inductive LayerFacePlane
   | xz
@@ -3126,6 +3276,118 @@ noncomputable def CSSLayerInput.zJunctionPosition {n k nX nZ : ℕ}
   let support := Finset.univ.filter (fun q : Fin n => input.zCheck junction.1.1 q = 1)
   have hmem : junction.1.2 ∈ support := Finset.mem_filter.mpr ⟨Finset.mem_univ _, junction.2⟩
   exact Finset.orderedSupportPosition support ⟨junction.1.2, hmem⟩
+
+inductive GridZLineStarResolution
+  | pointIntersection
+  | singleIncidence
+  | first
+  | middle
+  | last
+  deriving DecidableEq
+
+noncomputable def CSSLayerInput.gridZLineStarResolution {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (zCell : Fin (layout.extent nX - 1)) :
+    GridZLineStarResolution :=
+  match layout.indexAtVertex (interiorSuccVertex zCell) with
+  | some _ => .pointIntersection
+  | none =>
+      match input.zJunctionPosition junction with
+      | .single => .singleIncidence
+      | .first => .first
+      | .middle => .middle
+      | .last => .last
+
+noncomputable def CSSLayerInput.gridZLineXStarCandidate {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (zCell : Fin (layout.extent nX - 1)) :
+    Option (NQubitPauliGroupElement (Fintype.card (LayerGridPhysicalEdge input layout))) :=
+  match input.gridZLineStarResolution layout junction zCell with
+  | .pointIntersection | .singleIncidence => none
+  | .first | .middle =>
+      some (input.gridZLineFiveLegXStar layout junction.1.2 junction.1.1 zCell false)
+  | .last =>
+      some (input.gridZLineFiveLegXStar layout junction.1.2 junction.1.1 zCell true)
+
+lemma CSSLayerInput.gridZLineStarResolution_at_point {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (xCheck : Fin nX) :
+    input.gridZLineStarResolution layout junction (layout.interiorCell xCheck) =
+      .pointIntersection := by
+  simp [gridZLineStarResolution, interiorSuccVertex,
+    layout.interiorSucc_layerCoordinate, layout.indexAtVertex_layerCoordinate]
+
+lemma CSSLayerInput.gridZLineXStarCandidate_at_point {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (xCheck : Fin nX) :
+    input.gridZLineXStarCandidate layout junction (layout.interiorCell xCheck) = none := by
+  rw [gridZLineXStarCandidate, input.gridZLineStarResolution_at_point]
+
+lemma CSSLayerInput.gridZLineXStarCandidate_first {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (zCell : Fin (layout.extent nX - 1))
+    (hoff : layout.indexAtVertex (interiorSuccVertex zCell) = none)
+    (hposition : input.zJunctionPosition junction = .first) :
+    input.gridZLineXStarCandidate layout junction zCell =
+      some (input.gridZLineFiveLegXStar layout junction.1.2 junction.1.1 zCell false) := by
+  simp [gridZLineXStarCandidate, gridZLineStarResolution, hoff, hposition]
+
+lemma CSSLayerInput.gridZLineXStarCandidate_middle {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (zCell : Fin (layout.extent nX - 1))
+    (hoff : layout.indexAtVertex (interiorSuccVertex zCell) = none)
+    (hposition : input.zJunctionPosition junction = .middle) :
+    input.gridZLineXStarCandidate layout junction zCell =
+      some (input.gridZLineFiveLegXStar layout junction.1.2 junction.1.1 zCell false) := by
+  simp [gridZLineXStarCandidate, gridZLineStarResolution, hoff, hposition]
+
+lemma CSSLayerInput.gridZLineXStarCandidate_last {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (zCell : Fin (layout.extent nX - 1))
+    (hoff : layout.indexAtVertex (interiorSuccVertex zCell) = none)
+    (hposition : input.zJunctionPosition junction = .last) :
+    input.gridZLineXStarCandidate layout junction zCell =
+      some (input.gridZLineFiveLegXStar layout junction.1.2 junction.1.1 zCell true) := by
+  simp [gridZLineXStarCandidate, gridZLineStarResolution, hoff, hposition]
+
+lemma CSSLayerInput.gridZLineXStarCandidate_single {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (zCell : Fin (layout.extent nX - 1))
+    (hoff : layout.indexAtVertex (interiorSuccVertex zCell) = none)
+    (hposition : input.zJunctionPosition junction = .single) :
+    input.gridZLineXStarCandidate layout junction zCell = none := by
+  simp [gridZLineXStarCandidate, gridZLineStarResolution, hoff, hposition]
+
+lemma CSSLayerInput.gridZLineXStarCandidate_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (zCell : Fin (layout.extent nX - 1))
+    (check : NQubitPauliGroupElement (Fintype.card (LayerGridPhysicalEdge input layout)))
+    (hcheck : input.gridZLineXStarCandidate layout junction zCell = some check) :
+    NQubitPauliGroupElement.weight check = 5 := by
+  unfold gridZLineXStarCandidate at hcheck
+  cases hresolution : input.gridZLineStarResolution layout junction zCell <;>
+    simp only [hresolution, Option.some.injEq, reduceCtorEq] at hcheck
+  all_goals subst check; exact input.gridZLineFiveLegXStar_weight _ _ _ _ _
+
+lemma CSSLayerInput.gridZLineXStarCandidate_isXType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (zCell : Fin (layout.extent nX - 1))
+    (check : NQubitPauliGroupElement (Fintype.card (LayerGridPhysicalEdge input layout)))
+    (hcheck : input.gridZLineXStarCandidate layout junction zCell = some check) :
+    NQubitPauliGroupElement.IsXTypeElement check := by
+  unfold gridZLineXStarCandidate at hcheck
+  cases hresolution : input.gridZLineStarResolution layout junction zCell <;>
+    simp only [hresolution, Option.some.injEq, reduceCtorEq] at hcheck
+  all_goals subst check; exact input.gridZLineFiveLegXStar_isXType _ _ _ _ _
+
+lemma CSSLayerInput.gridZLineXStarCandidate_none_iff {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (zCell : Fin (layout.extent nX - 1)) :
+    input.gridZLineXStarCandidate layout junction zCell = none ↔
+      input.gridZLineStarResolution layout junction zCell = .pointIntersection ∨
+        input.gridZLineStarResolution layout junction zCell = .singleIncidence := by
+  cases hresolution : input.gridZLineStarResolution layout junction zCell <;>
+    simp [gridZLineXStarCandidate, hresolution]
 
 /-- X-star support at a Z-check incidence, with the y-edge chosen by position. -/
 noncomputable def CSSLayerInput.zJunctionXStarEdges {n k nX nZ : ℕ}

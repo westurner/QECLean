@@ -101,6 +101,20 @@ Implemented in `Layer.lean`:
   not construct a degenerate stabilizer code. The legacy output index and
   certificate have not been changed; local templates must migrate to this
   carrier before final slot assembly.
+- Spaced `gridPhysicalSupport`, `gridXPauli`, and `gridZPauli` now transport
+  actual-owner supports directly to `LayerGridPhysicalEdge`. Their weights
+  equal normalized support cardinalities, and cross-commutation is exactly
+  even normalized overlap. Spatially injective leg maps remain injective
+  after normalization. No unrestricted parity-transport law is assumed.
+- `gridZLineFiveLegXStar` migrates the reflected five-leg shape to real data
+  and Z-check owners. Its ambient image recovers the compact local shape,
+  its five normalized qubits remain distinct, and it has exact weight five
+  and phase-zero X type. `gridZLineStarResolution` dispatches actual ordered
+  Z incidences: first/middle select the forward y leg, last the backward leg.
+  X-layer intersections and `single` incidences are named unresolved states.
+  Candidate absence is proved equivalent to those states; every emitted
+  candidate has weight five and X type. This is not a total replacement rule:
+  termination, compatible Z checks, and point/boundary replacements remain open.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -236,9 +250,14 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   final physical checks. Distinguish geometric union of legs from Pauli
   multiplication: coincident factors in a product cancel modulo two.
   A reflected five-leg bulk z-line X-star shape now has exact projection,
-  type, and normalized weight laws. Connect it to actual incidence/termination
-  gates and compatible Z checks on the spaced physical carrier before treating
-  it as a replacement template. Do not fabricate a CSS input whose generator
+  type, and normalized weight laws on both carriers. Its spaced candidate is
+  connected to actual first/middle/last incidence labels and excludes X-layer
+  point intersections. `single` remains an explicit unresolved state, not a
+  first-incidence alias. Establish termination and compatible Z checks before
+  treating it as a replacement template. Verify both adjacent yz faces after
+  gluing, including the face opposite the selected y leg; the attempted finite
+  overlap probe did not complete and was removed, so no new adjacent-face
+  commutation or obstruction theorem is claimed. Do not fabricate a CSS input whose generator
   counts equal the larger grid dimensions.
 4. **Point templates and total slots.** Factor the ten bulk and twelve
   boundary cases through the local leg/face combinators. Implement total
