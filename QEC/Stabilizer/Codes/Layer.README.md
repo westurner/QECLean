@@ -30,6 +30,11 @@ Implemented in `Layer.lean`:
   first/middle/last incidence labels are represented as finite geometry.
 - Point-defect locations as intersections of distinct line supports, split
   into bulk and boundary vertices.
+- Candidate X-star supports and adjacent-face Z-plaquette supports at x/z
+  junctions, with first/middle/last orientation choosing the forward data cell
+  except at the last incidence. The candidate Paulis are type-correct and have
+  proved weight four; they are not yet organized into the paper's case-specific
+  check lists or replacement rules.
 
 Implemented in `../Framework/Core/Logical/Decoder.lean`:
 
@@ -43,9 +48,11 @@ Still incomplete:
 
 - `LayerCode.outputCode` is still an input certificate; the CSS input does not
   yet produce the output code.
-- Figure-defined line- and point-defect Pauli supports are not encoded. In
-  particular, none of the eight line-junction or 22 point-defect check families
-  has yet been added to the generated check lists.
+- The full figure-defined line- and point-defect checks are not encoded. The
+  x/z star and plaquette templates above are only partial line candidates; the
+  trivial/nontrivial y-junction checks, case-indexed line lists, replacement
+  rules, and all 22 point-defect families remain to be added to generated check
+  lists.
 - Sector decoders are exhaustive reference algorithms, not efficient
   renormalization-group decoders. The Layer-codes paper does not specify its
   suggested specialized decoders.
@@ -78,8 +85,10 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   checks must be omitted or replaced where line defects meet those boundaries.
 3. **Encode line-defect checks.** Translate all eight line-junction cases from
    the paper (three x-oriented, three z-oriented, and trivial/nontrivial
-   y-oriented) into finite edge supports. Use ordered input-check support for
-   first/middle/last cases. Add weight and incidence lemmas for every family.
+  y-oriented) into finite edge supports. Initial four-edge x/z star and
+  adjacent-face plaquette candidates now have type and weight proofs. Finish
+  the case-indexed lists, y-junction checks, applicability conditions, and
+  replacement/incidence lemmas for every family.
 4. **Encode point-defect checks.** Translate the ten bulk and twelve boundary
    point-defect configurations into explicit support constructors. State
    which adjacent line checks are replaced so the final generator list has no

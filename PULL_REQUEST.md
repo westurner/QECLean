@@ -108,8 +108,10 @@ No source reviewed contradicts that high-level arrangement. The standard
 rough/smooth boundary checks are now included. The remaining gap is the paper's
 explicit line- and point-defect checks (eight line cases, ten bulk point cases,
 and twelve boundary point cases), whose supports are given as lattice diagrams.
-The current code has incidence lines and point locations, but not those
-diagram-specific check supports or their replacement rules. Its exact finite
+Initial four-edge X-star and adjacent-face Z-plaquette candidates now exist at
+x/z junctions, with type and weight proofs, but they are not yet organized into
+the eight case-specific families or replacement rules. The y-junction
+stabilizers and all point-defect supports are also still missing. Its exact finite
 edge count is a formal indexing choice and has not been proved to match the
 paper's boundary-spacing convention or exact physical-qubit count. For positive
 dimensions, the formal edge count is now bounded between `3 n n_X n_Z` and

@@ -1357,6 +1357,179 @@ noncomputable def CSSLayerInput.zJunctionPosition {n k nX nZ : ℕ}
   have hmem : junction.1.2 ∈ support := Finset.mem_filter.mpr ⟨Finset.mem_univ _, junction.2⟩
   exact Finset.orderedSupportPosition support ⟨junction.1.2, hmem⟩
 
+/-- X-star support at a Z-check incidence, with the y-edge chosen by position. -/
+noncomputable def CSSLayerInput.zJunctionXStarEdges {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input)
+    (xCoord : Fin (nX - 1)) : Finset (LayerLatticeEdge n nX nZ) := by
+  let dataEdge : Fin n :=
+    if input.zJunctionPosition junction = .last then
+      ⟨junction.1.2.val - 1, by omega⟩
+    else junction.1.2
+  exact insert
+    (layerXEdge junction.1.1 junction.1.2.castSucc
+      (interiorSuccVertex (m := nX) xCoord))
+    (insert
+      (layerYEdge junction.1.1.castSucc dataEdge (interiorSuccVertex (m := nX) xCoord))
+      (insert
+        (layerZEdge junction.1.1.castSucc junction.1.2.castSucc
+          (interiorCast (m := nX) xCoord))
+        ({
+          (layerZEdge junction.1.1.castSucc junction.1.2.castSucc
+            (interiorSucc (m := nX) xCoord))})))
+
+/-- X-star support at an X-check incidence, with its y-edge oriented by position. -/
+noncomputable def CSSLayerInput.xJunctionXStarEdges {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : XJunction input)
+    (zCoord : Fin (nZ - 1)) : Finset (LayerLatticeEdge n nX nZ) := by
+  let dataEdge : Fin n :=
+    if input.xJunctionPosition junction = .last then
+      ⟨junction.1.2.val - 1, by omega⟩
+    else junction.1.2
+  exact insert
+    (layerXEdge (interiorCast (m := nZ) zCoord) junction.1.2.castSucc
+      junction.1.1.castSucc)
+    (insert
+      (layerXEdge (interiorSucc (m := nZ) zCoord) junction.1.2.castSucc
+        junction.1.1.castSucc)
+      (insert
+        (layerYEdge (interiorSuccVertex (m := nZ) zCoord) dataEdge
+          junction.1.1.castSucc)
+        ({
+          (layerZEdge (interiorSuccVertex (m := nZ) zCoord) junction.1.2.castSucc
+            junction.1.1)})))
+
+/-- Both line-junction star templates have support cardinality four. -/
+lemma CSSLayerInput.zJunctionXStarEdges_card {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input)
+    (xCoord : Fin (nX - 1)) :
+    (input.zJunctionXStarEdges junction xCoord).card = 4 := by
+  classical
+  simp [zJunctionXStarEdges, layerXEdge, layerYEdge, layerZEdge,
+    interiorCast_ne_succ, interiorSucc_ne_cast]
+
+lemma CSSLayerInput.xJunctionXStarEdges_card {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : XJunction input)
+    (zCoord : Fin (nZ - 1)) :
+    (input.xJunctionXStarEdges junction zCoord).card = 4 := by
+  classical
+  simp [xJunctionXStarEdges, layerXEdge, layerYEdge, layerZEdge,
+    interiorCast_ne_succ, interiorSucc_ne_cast]
+
+/-- Candidate Z-plaquette support at an X junction, in the adjacent xy face. -/
+noncomputable def CSSLayerInput.xJunctionZPlaquetteEdges {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : XJunction input)
+    (zCoord : Fin (nZ - 1)) : Finset (LayerLatticeEdge n nX nZ) := by
+  let dataCell : Fin n :=
+    if input.xJunctionPosition junction = .last then
+      ⟨junction.1.2.val - 1, by omega⟩
+    else junction.1.2
+  exact xySurfacePlaquetteEdges junction.1.1 (interiorCast zCoord) dataCell
+
+/-- Candidate Z-plaquette support at a Z junction, in the adjacent yz face.
+
+The paper uses this additional check for middle z junctions; the constructor is
+total so callers can state that applicability condition separately. -/
+noncomputable def CSSLayerInput.zJunctionZPlaquetteEdges {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input)
+    (xCoord : Fin (nX - 1)) : Finset (LayerLatticeEdge n nX nZ) := by
+  let dataCell : Fin n :=
+    if input.zJunctionPosition junction = .last then
+      ⟨junction.1.2.val - 1, by omega⟩
+    else junction.1.2
+  exact yzSurfacePlaquetteEdges junction.1.1 dataCell (interiorCast xCoord)
+
+/-- Candidate x-junction plaquettes retain the four-edge xy face weight. -/
+lemma CSSLayerInput.xJunctionZPlaquetteEdges_card {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : XJunction input)
+    (zCoord : Fin (nZ - 1)) :
+    (input.xJunctionZPlaquetteEdges junction zCoord).card = 4 := by
+  rw [xJunctionZPlaquetteEdges, card_xySurfacePlaquetteEdges]
+
+/-- Candidate z-junction plaquettes retain the four-edge yz face weight. -/
+lemma CSSLayerInput.zJunctionZPlaquetteEdges_card {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input)
+    (xCoord : Fin (nX - 1)) :
+    (input.zJunctionZPlaquetteEdges junction xCoord).card = 4 := by
+  rw [zJunctionZPlaquetteEdges, card_yzSurfacePlaquetteEdges]
+
+/-- Candidate X-star generator at an X junction. -/
+noncomputable def CSSLayerInput.xJunctionXStar {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : XJunction input)
+    (zCoord : Fin (nZ - 1)) :
+    NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
+  layerXPauli (input.xJunctionXStarEdges junction zCoord)
+
+/-- Candidate X-star generator at a Z junction. -/
+noncomputable def CSSLayerInput.zJunctionXStar {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input)
+    (xCoord : Fin (nX - 1)) :
+    NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
+  layerXPauli (input.zJunctionXStarEdges junction xCoord)
+
+/-- Candidate Z-plaquette generator at an X junction. -/
+noncomputable def CSSLayerInput.xJunctionZPlaquette {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : XJunction input)
+    (zCoord : Fin (nZ - 1)) :
+    NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
+  layerZPauli (input.xJunctionZPlaquetteEdges junction zCoord)
+
+/-- Candidate Z-plaquette generator at a Z junction. -/
+noncomputable def CSSLayerInput.zJunctionZPlaquette {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input)
+    (xCoord : Fin (nX - 1)) :
+    NQubitPauliGroupElement (LayerOutputSize n nX nZ) :=
+  layerZPauli (input.zJunctionZPlaquetteEdges junction xCoord)
+
+lemma CSSLayerInput.xJunctionXStar_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : XJunction input)
+    (zCoord : Fin (nZ - 1)) :
+    NQubitPauliGroupElement.weight (input.xJunctionXStar junction zCoord) = 4 := by
+  rw [xJunctionXStar, weight_layerXPauli, xJunctionXStarEdges_card]
+
+lemma CSSLayerInput.zJunctionXStar_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input)
+    (xCoord : Fin (nX - 1)) :
+    NQubitPauliGroupElement.weight (input.zJunctionXStar junction xCoord) = 4 := by
+  rw [zJunctionXStar, weight_layerXPauli, zJunctionXStarEdges_card]
+
+lemma CSSLayerInput.xJunctionZPlaquette_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : XJunction input)
+    (zCoord : Fin (nZ - 1)) :
+    NQubitPauliGroupElement.weight (input.xJunctionZPlaquette junction zCoord) = 4 := by
+  rw [xJunctionZPlaquette, weight_layerZPauli, xJunctionZPlaquetteEdges_card]
+
+lemma CSSLayerInput.zJunctionZPlaquette_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input)
+    (xCoord : Fin (nX - 1)) :
+    NQubitPauliGroupElement.weight (input.zJunctionZPlaquette junction xCoord) = 4 := by
+  rw [zJunctionZPlaquette, weight_layerZPauli, zJunctionZPlaquetteEdges_card]
+
+lemma CSSLayerInput.xJunctionXStar_isXType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : XJunction input)
+    (zCoord : Fin (nZ - 1)) :
+    NQubitPauliGroupElement.IsXTypeElement (input.xJunctionXStar junction zCoord) :=
+  layerXPauli_isXType _
+
+lemma CSSLayerInput.zJunctionXStar_isXType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input)
+    (xCoord : Fin (nX - 1)) :
+    NQubitPauliGroupElement.IsXTypeElement (input.zJunctionXStar junction xCoord) :=
+  layerXPauli_isXType _
+
+lemma CSSLayerInput.xJunctionZPlaquette_isZType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : XJunction input)
+    (zCoord : Fin (nZ - 1)) :
+    NQubitPauliGroupElement.IsZTypeElement
+      (input.xJunctionZPlaquette junction zCoord) :=
+  layerZPauli_isZType _
+
+lemma CSSLayerInput.zJunctionZPlaquette_isZType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input)
+    (xCoord : Fin (nX - 1)) :
+    NQubitPauliGroupElement.IsZTypeElement
+      (input.zJunctionZPlaquette junction xCoord) :=
+  layerZPauli_isZType _
+
 /-- A Y-junction is one matched pair on the intersection of an X and Z check layer. -/
 abbrev YJunctionPairIndex {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ) :=
   Σ x : Fin nX, Σ z : Fin nZ, Fin ((input.xzCheckOverlap x z).card / 2)
