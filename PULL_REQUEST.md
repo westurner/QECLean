@@ -86,6 +86,16 @@ input CSS code.
   support, distinct positions, phase-zero X type, and physical weight five.
   Its incidence applicability, coupling plaquettes, point replacements, and
   emitted-slot integration remain separate obligations.
+- Prove the compact interior-vertex obstruction for either one-check sector.
+  Add explicit padded spacing, real-layer coordinate recovery/separation,
+  and an actual-owner `LayerGridSurfaceEdge` with exact count and injective
+  ambient embedding. Its one-X/one-Z junction is inhabited.
+- Normalize the spaced grid directly from original input rows and scaled
+  half-open pairing intervals; prove position preservation, idempotence, and
+  active/inactive x/z gates. Number fixed-point `LayerGridPhysicalEdge`, prove
+  its count, and derive logical capacity by a data-qubit injection, including
+  empty check sectors. Do not inflate generator counts to grid dimensions.
+  Template migration and final output assembly remain unfinished.
 - Build separate same-type surface X/Z stabilizer groups that include those
   standard boundary candidates. Cross-sector commutation with line/point defect
   checks remains unproved because those checks are not yet encoded.
@@ -224,6 +234,13 @@ The ordinary three-qubit repetition example is outside this positive-count
 domain and is deferred; the first planned constructor examples are
 `[[4,2,2]]`, Shor, and Steane. Independent generator lists must not be padded
 with identity checks to evade the domain condition.
+
+The subsequent spaced-grid model repairs a further compact-geometry issue:
+one-check sectors have no compact bulk star vertex. Padded interior coordinates
+and actual-owner gluing now resolve that issue and the geometric capacity gap.
+They do not establish the final emitted checks, diagram correspondence,
+global CSS, rank, encoded dimension, or distance; the output certificate and
+legacy qubit index remain unchanged.
 
 The paper explicitly leaves specialized decoding open, while noting that a
 general renormalization-group decoder is applicable. The exact X/Z sector

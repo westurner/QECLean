@@ -2162,6 +2162,364 @@ structure LayerInteriorStarVertex (n nX nZ : ℕ) where
   yCell : Fin (n - 1)
   zCell : Fin (nX - 1)
 
+lemma no_layerInteriorStarVertex_one_xLayer (n nZ : ℕ) :
+    ¬ Nonempty (LayerInteriorStarVertex n 1 nZ) := by
+  rintro ⟨vertex⟩
+  have hbound := vertex.zCell.isLt
+  omega
+
+lemma no_layerInteriorStarVertex_one_zLayer (n nX : ℕ) :
+    ¬ Nonempty (LayerInteriorStarVertex n nX 1) := by
+  rintro ⟨vertex⟩
+  have hbound := vertex.xCell.isLt
+  omega
+
+structure LayerGridLayout where
+  spacing : ℕ
+  spacing_ge_four : 4 ≤ spacing
+
+def LayerGridLayout.extent (layout : LayerGridLayout) (count : ℕ) : ℕ :=
+  layout.spacing * (count + 1)
+
+lemma LayerGridLayout.extent_pos (layout : LayerGridLayout) (count : ℕ) :
+    0 < layout.extent count :=
+  Nat.mul_pos (by have := layout.spacing_ge_four; omega) (Nat.zero_lt_succ count)
+
+def LayerGridLayout.layerCoordinate (layout : LayerGridLayout) {count : ℕ}
+    (index : Fin count) : Fin (layout.extent count) :=
+  ⟨layout.spacing * (index.val + 1), by
+    have hspacing : 0 < layout.spacing := by have := layout.spacing_ge_four; omega
+    exact Nat.mul_lt_mul_of_pos_left (by omega) hspacing⟩
+
+def LayerGridLayout.interiorCell (layout : LayerGridLayout) {count : ℕ}
+    (index : Fin count) : Fin (layout.extent count - 1) :=
+  ⟨(layout.layerCoordinate index).val - 1, by
+    have hspacing := layout.spacing_ge_four
+    have hindex := index.isLt
+    have hcoordinate := (layout.layerCoordinate index).isLt
+    dsimp [layerCoordinate, extent] at *
+    have hpositive : 0 < layout.spacing * (index.val + 1) :=
+      Nat.mul_pos (by omega) (by omega)
+    omega⟩
+
+lemma LayerGridLayout.interiorSucc_layerCoordinate (layout : LayerGridLayout)
+    {count : ℕ} (index : Fin count) :
+    interiorSucc (layout.interiorCell index) = layout.layerCoordinate index := by
+  apply Fin.ext
+  have hpositive : 0 < layout.spacing * (index.val + 1) :=
+    Nat.mul_pos (by have := layout.spacing_ge_four; omega) (by omega)
+  simp only [interiorSucc, interiorCell, layerCoordinate]
+  omega
+
+def LayerGridLayout.junctionVertex (layout : LayerGridLayout) {n nX nZ : ℕ}
+    (qubit : Fin n) (xCheck : Fin nX) (zCheck : Fin nZ) :
+    LayerInteriorStarVertex (layout.extent n) (layout.extent nX) (layout.extent nZ) where
+  xCell := layout.interiorCell zCheck
+  yCell := layout.interiorCell qubit
+  zCell := layout.interiorCell xCheck
+
+lemma LayerGridLayout.layerCoordinate_injective (layout : LayerGridLayout)
+    {count : ℕ} : Function.Injective (layout.layerCoordinate (count := count)) := by
+  intro first second heq
+  apply Fin.ext
+  have hvalue := congrArg Fin.val heq
+  change layout.spacing * (first.val + 1) = layout.spacing * (second.val + 1) at hvalue
+  have hspacing : layout.spacing ≠ 0 := by have := layout.spacing_ge_four; omega
+  have hindex := mul_left_cancel₀ hspacing hvalue
+  omega
+
+lemma LayerGridLayout.layerCoordinate_eq_iff (layout : LayerGridLayout)
+    {count : ℕ} (first second : Fin count) :
+    layout.layerCoordinate first = layout.layerCoordinate second ↔ first = second :=
+  layout.layerCoordinate_injective.eq_iff
+
+abbrev LayerGridSurfaceEdge (layout : LayerGridLayout) (n nX nZ : ℕ) :=
+  (Fin n × ((Fin (layout.extent nZ) × Fin (layout.extent nX + 1)) ⊕
+    (Fin (layout.extent nZ + 1) × Fin (layout.extent nX)))) ⊕
+  ((Fin nX × ((Fin (layout.extent nZ) × Fin (layout.extent n + 1)) ⊕
+    (Fin (layout.extent nZ + 1) × Fin (layout.extent n)))) ⊕
+    (Fin nZ × ((Fin (layout.extent n) × Fin (layout.extent nX + 1)) ⊕
+      (Fin (layout.extent n + 1) × Fin (layout.extent nX)))))
+
+def LayerGridLayout.ambientEdge (layout : LayerGridLayout) {n nX nZ : ℕ} :
+    LayerGridSurfaceEdge layout n nX nZ →
+      LayerSurfaceEdge (layout.extent n) (layout.extent nX) (layout.extent nZ)
+  | Sum.inl (qubit, edge) => Sum.inl (layout.layerCoordinate qubit, edge)
+  | Sum.inr (Sum.inl (check, edge)) =>
+      Sum.inr (Sum.inl (layout.layerCoordinate check, edge))
+  | Sum.inr (Sum.inr (check, edge)) =>
+      Sum.inr (Sum.inr (layout.layerCoordinate check, edge))
+
+lemma LayerGridLayout.ambientEdge_injective (layout : LayerGridLayout) {n nX nZ : ℕ} :
+    Function.Injective (layout.ambientEdge (n := n) (nX := nX) (nZ := nZ)) := by
+  intro first second heq
+  rcases first with ⟨qubit, edge⟩ | (⟨check, edge⟩ | ⟨check, edge⟩) <;>
+    rcases second with ⟨other, otherEdge⟩ | (⟨other, otherEdge⟩ | ⟨other, otherEdge⟩) <;>
+    simp_all [ambientEdge, layout.layerCoordinate_eq_iff]
+
+lemma card_layerGridSurfaceEdge (layout : LayerGridLayout) (n nX nZ : ℕ) :
+    Fintype.card (LayerGridSurfaceEdge layout n nX nZ) =
+      n * (layout.extent nZ * (layout.extent nX + 1) +
+        (layout.extent nZ + 1) * layout.extent nX) +
+      nX * (layout.extent nZ * (layout.extent n + 1) +
+        (layout.extent nZ + 1) * layout.extent n) +
+      nZ * (layout.extent n * (layout.extent nX + 1) +
+        (layout.extent n + 1) * layout.extent nX) := by
+  simp only [LayerGridSurfaceEdge, Fintype.card_sum, Fintype.card_prod, Fintype.card_fin]
+  ring
+
+lemma singleCheck_grid_has_junction (qubit : Fin 4) :
+    Nonempty (LayerInteriorStarVertex 20 8 8) :=
+  ⟨LayerGridLayout.junctionVertex ⟨4, le_rfl⟩ qubit (0 : Fin 1) (0 : Fin 1)⟩
+
+lemma LayerGridLayout.layerCoordinate_separated (layout : LayerGridLayout)
+    {count : ℕ} (first second : Fin count) (horder : first.val < second.val) :
+    (layout.layerCoordinate first).val + layout.spacing ≤
+      (layout.layerCoordinate second).val := by
+  have hindices : first.val + 1 + 1 ≤ second.val + 1 := by omega
+  have hscaled := Nat.mul_le_mul_left layout.spacing hindices
+  simpa [layerCoordinate, Nat.mul_add] using hscaled
+
+noncomputable def LayerGridLayout.indexAtVertex (layout : LayerGridLayout) {count : ℕ}
+    (coordinate : Fin (layout.extent count + 1)) : Option (Fin count) := by
+  classical
+  exact if hindex : ∃ index : Fin count, coordinate = (layout.layerCoordinate index).castSucc
+    then some (Classical.choose hindex) else none
+
+lemma LayerGridLayout.indexAtVertex_spec (layout : LayerGridLayout) {count : ℕ}
+    (coordinate : Fin (layout.extent count + 1)) (index : Fin count)
+    (hindex : layout.indexAtVertex coordinate = some index) :
+    coordinate = (layout.layerCoordinate index).castSucc := by
+  classical
+  unfold indexAtVertex at hindex
+  split_ifs at hindex with hexists
+  · have heq := Option.some.inj hindex
+    rw [← heq]
+    exact Classical.choose_spec hexists
+
+lemma LayerGridLayout.indexAtVertex_layerCoordinate (layout : LayerGridLayout)
+    {count : ℕ} (index : Fin count) :
+    layout.indexAtVertex (layout.layerCoordinate index).castSucc = some index := by
+  classical
+  have hexists : ∃ other : Fin count,
+      (layout.layerCoordinate index).castSucc = (layout.layerCoordinate other).castSucc :=
+    ⟨index, rfl⟩
+  rw [indexAtVertex, dite_eq_left hexists]
+  apply congrArg some
+  apply layout.layerCoordinate_injective
+  apply Fin.castSucc_injective
+  exact (Classical.choose_spec hexists).symm
+
+def LayerGridLayout.edgePosition (layout : LayerGridLayout) {n nX nZ : ℕ}
+    (edge : LayerGridSurfaceEdge layout n nX nZ) :
+    LayerLatticeEdge (layout.extent n) (layout.extent nX) (layout.extent nZ) :=
+  layerSurfaceEdgePosition (layout.ambientEdge edge)
+
+noncomputable def CSSLayerInput.gridYMatched {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (xCheck : Fin nX) (zCheck : Fin nZ) (yCoord : Fin (layout.extent n)) : Prop :=
+  ∃ pair : Fin ((input.xzCheckOverlap xCheck zCheck).card / 2),
+    min (layout.layerCoordinate (input.xzPairEndpoint xCheck zCheck pair 0)).val
+        (layout.layerCoordinate (input.xzPairEndpoint xCheck zCheck pair 1)).val ≤ yCoord.val ∧
+      yCoord.val <
+        max (layout.layerCoordinate (input.xzPairEndpoint xCheck zCheck pair 0)).val
+          (layout.layerCoordinate (input.xzPairEndpoint xCheck zCheck pair 1)).val
+
+noncomputable def CSSLayerInput.canonGridDefectEdge {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
+    LayerGridSurfaceEdge layout n nX nZ → LayerGridSurfaceEdge layout n nX nZ := by
+  classical
+  exact fun
+    | Sum.inl edge => Sum.inl edge
+    | Sum.inr (Sum.inl (check, Sum.inl (xCoord, yCoord))) =>
+        match layout.indexAtVertex yCoord with
+        | some qubit =>
+            if input.xCheck check qubit = 1 then
+              Sum.inl (qubit, Sum.inl (xCoord, (layout.layerCoordinate check).castSucc))
+            else Sum.inr (Sum.inl (check, Sum.inl (xCoord, yCoord)))
+        | none => Sum.inr (Sum.inl (check, Sum.inl (xCoord, yCoord)))
+    | Sum.inr (Sum.inl (check, Sum.inr edge)) => Sum.inr (Sum.inl (check, Sum.inr edge))
+    | Sum.inr (Sum.inr (check, Sum.inl (yCoord, zCoord))) =>
+        match layout.indexAtVertex zCoord with
+        | some xCheck =>
+            if input.gridYMatched layout xCheck check yCoord then
+              Sum.inr (Sum.inl (xCheck,
+                Sum.inr ((layout.layerCoordinate check).castSucc, yCoord)))
+            else Sum.inr (Sum.inr (check, Sum.inl (yCoord, zCoord)))
+        | none => Sum.inr (Sum.inr (check, Sum.inl (yCoord, zCoord)))
+    | Sum.inr (Sum.inr (check, Sum.inr (yCoord, zCoord))) =>
+        match layout.indexAtVertex yCoord with
+        | some qubit =>
+            if input.zCheck check qubit = 1 then
+              Sum.inl (qubit, Sum.inr ((layout.layerCoordinate check).castSucc, zCoord))
+            else Sum.inr (Sum.inr (check, Sum.inr (yCoord, zCoord)))
+        | none => Sum.inr (Sum.inr (check, Sum.inr (yCoord, zCoord)))
+
+lemma CSSLayerInput.canonGridDefectEdge_idempotent {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (edge : LayerGridSurfaceEdge layout n nX nZ) :
+    input.canonGridDefectEdge layout (input.canonGridDefectEdge layout edge) =
+      input.canonGridDefectEdge layout edge := by
+  classical
+  rcases edge with edge | (⟨check, edge | edge⟩ | ⟨check, edge | edge⟩)
+  · rfl
+  · rcases edge with ⟨xCoord, yCoord⟩
+    cases hindex : layout.indexAtVertex yCoord <;>
+      simp only [canonGridDefectEdge, hindex]
+    split_ifs <;> simp_all
+  · rfl
+  · rcases edge with ⟨yCoord, zCoord⟩
+    cases hindex : layout.indexAtVertex zCoord <;>
+      simp only [canonGridDefectEdge, hindex]
+    split_ifs <;> simp_all
+  · rcases edge with ⟨yCoord, zCoord⟩
+    cases hindex : layout.indexAtVertex yCoord <;>
+      simp only [canonGridDefectEdge, hindex]
+    split_ifs <;> simp_all
+
+lemma CSSLayerInput.canonGridDefectEdge_position {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (edge : LayerGridSurfaceEdge layout n nX nZ) :
+    layout.edgePosition (input.canonGridDefectEdge layout edge) =
+      layout.edgePosition edge := by
+  classical
+  rcases edge with edge | (⟨check, edge | edge⟩ | ⟨check, edge | edge⟩)
+  · rfl
+  · rcases edge with ⟨xCoord, yCoord⟩
+    cases hindex : layout.indexAtVertex yCoord with
+    | none => simp [canonGridDefectEdge, hindex]
+    | some qubit =>
+        have hcoordinate := layout.indexAtVertex_spec yCoord qubit hindex
+        simp only [canonGridDefectEdge, hindex]
+        split_ifs <;>
+          simp_all [LayerGridLayout.edgePosition, LayerGridLayout.ambientEdge,
+            layerSurfaceEdgePosition]
+  · rfl
+  · rcases edge with ⟨yCoord, zCoord⟩
+    cases hindex : layout.indexAtVertex zCoord with
+    | none => simp [canonGridDefectEdge, hindex]
+    | some xCheck =>
+        have hcoordinate := layout.indexAtVertex_spec zCoord xCheck hindex
+        simp only [canonGridDefectEdge, hindex]
+        split_ifs <;>
+          simp_all [LayerGridLayout.edgePosition, LayerGridLayout.ambientEdge,
+            layerSurfaceEdgePosition]
+  · rcases edge with ⟨yCoord, zCoord⟩
+    cases hindex : layout.indexAtVertex yCoord with
+    | none => simp [canonGridDefectEdge, hindex]
+    | some qubit =>
+        have hcoordinate := layout.indexAtVertex_spec yCoord qubit hindex
+        simp only [canonGridDefectEdge, hindex]
+        split_ifs <;>
+          simp_all [LayerGridLayout.edgePosition, LayerGridLayout.ambientEdge,
+            layerSurfaceEdgePosition]
+
+lemma CSSLayerInput.canonGridDefectEdge_x_active {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (check : Fin nX) (qubit : Fin n) (xCoord : Fin (layout.extent nZ))
+    (hactive : input.xCheck check qubit = 1) :
+    input.canonGridDefectEdge layout
+        (Sum.inr (Sum.inl (check, Sum.inl
+          (xCoord, (layout.layerCoordinate qubit).castSucc)))) =
+      Sum.inl (qubit, Sum.inl (xCoord, (layout.layerCoordinate check).castSucc)) := by
+  simp [canonGridDefectEdge, layout.indexAtVertex_layerCoordinate, hactive]
+
+lemma CSSLayerInput.canonGridDefectEdge_x_inactive {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (check : Fin nX) (qubit : Fin n) (xCoord : Fin (layout.extent nZ))
+    (hinactive : input.xCheck check qubit ≠ 1) :
+    input.canonGridDefectEdge layout
+        (Sum.inr (Sum.inl (check, Sum.inl
+          (xCoord, (layout.layerCoordinate qubit).castSucc)))) =
+      Sum.inr (Sum.inl (check, Sum.inl
+        (xCoord, (layout.layerCoordinate qubit).castSucc))) := by
+  simp [canonGridDefectEdge, layout.indexAtVertex_layerCoordinate, hinactive]
+
+lemma CSSLayerInput.canonGridDefectEdge_z_active {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (check : Fin nZ) (qubit : Fin n) (zCoord : Fin (layout.extent nX))
+    (hactive : input.zCheck check qubit = 1) :
+    input.canonGridDefectEdge layout
+        (Sum.inr (Sum.inr (check, Sum.inr
+          ((layout.layerCoordinate qubit).castSucc, zCoord)))) =
+      Sum.inl (qubit, Sum.inr ((layout.layerCoordinate check).castSucc, zCoord)) := by
+  simp [canonGridDefectEdge, layout.indexAtVertex_layerCoordinate, hactive]
+
+lemma CSSLayerInput.canonGridDefectEdge_z_inactive {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (check : Fin nZ) (qubit : Fin n) (zCoord : Fin (layout.extent nX))
+    (hinactive : input.zCheck check qubit ≠ 1) :
+    input.canonGridDefectEdge layout
+        (Sum.inr (Sum.inr (check, Sum.inr
+          ((layout.layerCoordinate qubit).castSucc, zCoord)))) =
+      Sum.inr (Sum.inr (check, Sum.inr
+        ((layout.layerCoordinate qubit).castSucc, zCoord))) := by
+  simp [canonGridDefectEdge, layout.indexAtVertex_layerCoordinate, hinactive]
+
+abbrev LayerGridPhysicalEdge {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (layout : LayerGridLayout) :=
+  {edge : LayerGridSurfaceEdge layout n nX nZ // input.canonGridDefectEdge layout edge = edge}
+
+noncomputable instance layerGridPhysicalEdgeFintype {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
+    Fintype (LayerGridPhysicalEdge input layout) := by
+  classical
+  exact Fintype.ofFinite _
+
+noncomputable def CSSLayerInput.gridPhysicalEdge {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (edge : LayerGridSurfaceEdge layout n nX nZ) : LayerGridPhysicalEdge input layout :=
+  ⟨input.canonGridDefectEdge layout edge, input.canonGridDefectEdge_idempotent layout edge⟩
+
+lemma CSSLayerInput.gridPhysicalEdge_surjective {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
+    Function.Surjective (input.gridPhysicalEdge layout) := by
+  intro edge
+  refine ⟨edge.val, ?_⟩
+  apply Subtype.ext
+  exact edge.property
+
+noncomputable def CSSLayerInput.gridPhysicalEdgeEquiv {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
+    LayerGridPhysicalEdge input layout ≃ Fin (Fintype.card (LayerGridPhysicalEdge input layout)) :=
+  Fintype.equivFin _
+
+noncomputable def CSSLayerInput.removedGridDefectEdges {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
+    Finset (LayerGridSurfaceEdge layout n nX nZ) := by
+  classical
+  exact Finset.univ.filter (fun edge => input.canonGridDefectEdge layout edge ≠ edge)
+
+lemma CSSLayerInput.card_gridPhysicalEdge_add_removed {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
+    Fintype.card (LayerGridPhysicalEdge input layout) +
+        (input.removedGridDefectEdges layout).card =
+      Fintype.card (LayerGridSurfaceEdge layout n nX nZ) := by
+  classical
+  rw [Fintype.card_subtype, removedGridDefectEdges]
+  exact Finset.card_filter_add_card_filter_not _
+
+def CSSLayerInput.gridDataLayerPhysicalEdge {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (qubit : Fin n) : LayerGridPhysicalEdge input layout :=
+  ⟨Sum.inl (qubit, Sum.inl (⟨0, layout.extent_pos nZ⟩, 0)), rfl⟩
+
+lemma CSSLayerInput.gridDataLayerPhysicalEdge_injective {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
+    Function.Injective (input.gridDataLayerPhysicalEdge layout) := by
+  intro first second heq
+  have hvalue := congrArg Subtype.val heq
+  simpa [gridDataLayerPhysicalEdge] using hvalue
+
+lemma CSSLayerInput.gridPhysical_logical_capacity {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
+    k ≤ Fintype.card (LayerGridPhysicalEdge input layout) := by
+  have hcard := Fintype.card_le_of_injective _
+    (input.gridDataLayerPhysicalEdge_injective layout)
+  have hphysical : n ≤ Fintype.card (LayerGridPhysicalEdge input layout) := by
+    simpa only [Fintype.card_fin] using hcard
+  exact input.logicalQubits_le_physical.trans hphysical
+
 abbrev LayerHalfStarLeg := Fin 4 ⊕ (Fin 4 ⊕ Fin 4)
 
 lemma card_layerHalfStarLeg : Fintype.card LayerHalfStarLeg = 12 := by

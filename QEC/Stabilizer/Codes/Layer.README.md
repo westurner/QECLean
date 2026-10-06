@@ -82,6 +82,25 @@ Implemented in `Layer.lean`:
   and phase-zero X type are proved. The shape is not yet an emitted line
   replacement: applicability, coupling plaquettes, termination, point cases,
   and obsolete-slot suppression remain unproved.
+- The compact grid cannot host a `LayerInteriorStarVertex` when either check
+  count is one. This is proved for both axes, so it cannot place the planned
+  one-X/one-Z `[[4,2,2]]` junction. `LayerGridLayout` now provides explicit
+  padding and spacing at least four, with extent `spacing * (count + 1)`.
+  Real layers lie in the interior, their coordinates are injective and
+  separated by at least the spacing, and the one-check junction is inhabited.
+- `LayerGridSurfaceEdge` retains only the original data/check owners on the
+  spaced grid, not every ambient grid plane. Its embedding is injective and
+  its exact owned-edge count is proved. Vertex lookup recovers precisely the
+  embedded layer index. `canonGridDefectEdge` uses the original incidence rows
+  and pairing endpoints, scaled to half-open y intervals; idempotence, position
+  preservation, and active/inactive x/z gates are proved.
+- `LayerGridPhysicalEdge` is the spaced fixed-point carrier, with surjection,
+  numbering, and an exact ambient-minus-removed count. Injecting the original
+  data qubits proves `k ≤ N` even when a check sector is empty. This removes
+  the compact carrier's capacity obstruction at the geometry level, but does
+  not construct a degenerate stabilizer code. The legacy output index and
+  certificate have not been changed; local templates must migrate to this
+  carrier before final slot assembly.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -178,8 +197,10 @@ Do not validate this Lean development with host tools from the Sustainable
 Factory environment. Before starting, check `command -v lean lake rg` and
 `lean --version`; the project toolchain is recorded in `lean-toolchain`.
 
-1. **Canonical physical edges.** Use `LayerSurfaceEdge` as the owned ambient
-  geometry and cuboid coordinates only for spatial location. The proposed
+1. **Canonical physical edges.** Use `LayerGridSurfaceEdge` as the construction
+  target, with the original owners, padded extents, and explicit spacing at
+  least four. The compact `LayerSurfaceEdge` remains a legacy geometry: it
+  has no bulk star vertex for one check in either sector. The proposed
   `canonDefectEdge` convention sends active xy x-edges and yz z-edges to their
   data-layer copies, and matched yz y-edges to their xy copies. Idempotence,
   position preservation, active/inactive gates, upper-boundary preservation,
@@ -187,12 +208,15 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   The exact count is the owned-edge count minus `removedDefectEdges.card`.
   Verify this convention against every paper diagram, including any added
   coupling qubits, truncated layers, and superlattice spacing `c`, before
-  replacing `LayerOutputSize`. These normalization laws alone do not prove
-  that the convention realizes the paper's code.
+  replacing `LayerOutputSize`. The spaced `canonGridDefectEdge` now implements
+  the corresponding gates and scaled pairing intervals on real owners, with
+  position/idempotence laws and a finite `LayerGridPhysicalEdge` carrier.
+  Neither projection's laws alone prove that it realizes the paper's code.
   The zero-check capacity obstruction is resolved at the contract boundary:
   the future paper-style constructor takes `LayerConstructionDomain` (both
-  layer counts positive), with derived `n ≤ N` and `k ≤ N` bounds. Keep the
-  general input type unchanged and do not promise a degenerate fallback.
+  layer counts positive). The new spaced carrier additionally proves logical
+  capacity without that restriction, but a degenerate code constructor remains
+  unimplemented. Keep the general input type unchanged.
 2. **Local legs and boundary rules.** Twelve bulk half-star leg slots and their
   three surface-star projection laws are implemented, along with normalized
   X-star type and six-leg weight bounds. Four-leg planar face combinators,
@@ -213,7 +237,9 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   multiplication: coincident factors in a product cancel modulo two.
   A reflected five-leg bulk z-line X-star shape now has exact projection,
   type, and normalized weight laws. Connect it to actual incidence/termination
-  gates and compatible Z checks before treating it as a replacement template.
+  gates and compatible Z checks on the spaced physical carrier before treating
+  it as a replacement template. Do not fabricate a CSS input whose generator
+  counts equal the larger grid dimensions.
 4. **Point templates and total slots.** Factor the ten bulk and twelve
   boundary cases through the local leg/face combinators. Implement total
   vertex/cell classification and dependent star/plaquette slots so each
@@ -362,6 +388,14 @@ be emitted as complete line templates.
 The corresponding five-leg bulk shape and its reflection are now implemented
 with exact spatial projection, physical weight five, and phase-zero X type.
 It is still a local primitive, not a complete case classifier or check list.
+
+The spaced-grid correction proves that compact one-check geometry cannot host
+the bulk primitive, and supplies a padded actual-owner carrier instead. Its
+original-index lookup, scaled-segment normalization, active/inactive gates,
+idempotence, position preservation, physical count, and capacity are checked.
+The spacing lower bound is a declared geometric design condition, not a proof
+that all paper neighborhoods or replacement checks are realized. Slot and
+template migration, full diagram correspondence, rank, and distance remain.
 
 Focused Lean checks and the Layer build (`3,147` jobs) pass, with the existing
 linter warnings unchanged. The parent documentation build also succeeds with
