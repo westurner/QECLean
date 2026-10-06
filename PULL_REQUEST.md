@@ -66,6 +66,13 @@ input CSS code.
   on xz, xy, and yz layers, together with three-edge rough-boundary Z
   plaquettes and smooth-boundary X stars in the orientations specified by the
   paper.
+- Add owned three-leg rough xz/yz plaquettes and smooth xz/xy stars, their
+  spatial projection laws, and phase-zero physical lifts of exact weight
+  three. Correct rough plaquettes to retain the inward horizontal edge: the
+  former outer-edge convention gave odd overlap at a smooth/rough corner.
+  Verify all four two-by-two corners commute, including on normalized
+  physical representatives for every input and data-layer owner. Prove
+  same-owner overlap transport without assuming it for cross-owner gluing.
 - Build separate same-type surface X/Z stabilizer groups that include those
   standard boundary candidates. Cross-sector commutation with line/point defect
   checks remains unproved because those checks are not yet encoded.
@@ -236,6 +243,11 @@ the Layer construction plan. Recorded checks at that checkpoint:
   no proof placeholders or custom axioms were introduced.
   The parent documentation gate (`make -C docs html`) also succeeds with
   29 warnings about existing documentation references.
+- The standard-boundary increment also passes focused Lean and the
+  `3,147`-job Layer build, whitespace and proof-placeholder audits, and the
+  parent documentation gate. The surface-code boundary diagram was inspected
+  directly; source PDFs were preserved. These tests do not establish global
+  CSS or boundary replacement-slot completeness.
 - The Sustainable Factory root devcontainer installs PyMuPDF in an isolated
   `/opt/pdf-tools` virtual environment for inspecting the paper's PDF check
   diagrams. The root image could not be built here because Docker/Podman/Buildah

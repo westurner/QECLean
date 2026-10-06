@@ -610,8 +610,7 @@ def xzRoughBoundaryPlaquetteEdges {n nX nZ : ℕ}
     (q : Fin n) (x : Fin nZ) (isUpper : Bool) (hnX : 0 < nX) :
     Finset (LayerLatticeEdge n nX nZ) := by
   let zCell : Fin nX := if isUpper then ⟨nX - 1, by omega⟩ else ⟨0, hnX⟩
-  let zVertex : Fin (nX + 1) :=
-    if isUpper then ⟨nX, by omega⟩ else ⟨0, by omega⟩
+  let zVertex : Fin (nX + 1) := if isUpper then zCell.castSucc else zCell.succ
   exact {layerXEdge x q.castSucc zVertex,
     layerZEdge x.castSucc q.castSucc zCell,
     layerZEdge x.succ q.castSucc zCell}
@@ -629,8 +628,7 @@ def yzRoughBoundaryPlaquetteEdges {n nX nZ : ℕ}
     (check : Fin nZ) (q : Fin n) (isUpper : Bool) (hnX : 0 < nX) :
     Finset (LayerLatticeEdge n nX nZ) := by
   let zCell : Fin nX := if isUpper then ⟨nX - 1, by omega⟩ else ⟨0, hnX⟩
-  let zVertex : Fin (nX + 1) :=
-    if isUpper then ⟨nX, by omega⟩ else ⟨0, by omega⟩
+  let zVertex : Fin (nX + 1) := if isUpper then zCell.castSucc else zCell.succ
   exact {layerYEdge check.castSucc q zVertex,
     layerZEdge check.castSucc q.castSucc zCell,
     layerZEdge check.castSucc q.succ zCell}
@@ -1227,6 +1225,27 @@ theorem layerSurfaceZCheckCandidates_zType {n nX nZ : ℕ}
   rcases hg with hsurface | hboundary
   · exact layerSurfacePlaquetteCandidates_zType g hsurface
   · exact layerRoughBoundaryPlaquetteCandidates_zType g hboundary
+
+lemma rough_smooth_corner_overlap_card (isRight isUpper : Bool) :
+    ((xzSmoothBoundaryStarEdges (n := 1) (nX := 2) (nZ := 2) 0 0 isRight (by decide)) ∩
+      xzRoughBoundaryPlaquetteEdges (n := 1) (nX := 2) (nZ := 2)
+        0 (if isRight then 1 else 0) isUpper (by decide)).card = 2 := by
+  classical
+  cases isRight <;> cases isUpper <;>
+    simp [xzSmoothBoundaryStarEdges, xzRoughBoundaryPlaquetteEdges,
+      layerXEdge, layerZEdge, interiorCast, interiorSucc, interiorSuccVertex]
+
+lemma rough_smooth_corner_checks_commute (isRight isUpper : Bool) :
+    layerXPauli (xzSmoothBoundaryStarEdges (n := 1) (nX := 2) (nZ := 2)
+        0 0 isRight (by decide)) *
+        layerZPauli (xzRoughBoundaryPlaquetteEdges (n := 1) (nX := 2) (nZ := 2)
+          0 (if isRight then 1 else 0) isUpper (by decide)) =
+      layerZPauli (xzRoughBoundaryPlaquetteEdges (n := 1) (nX := 2) (nZ := 2)
+          0 (if isRight then 1 else 0) isUpper (by decide)) *
+        layerXPauli (xzSmoothBoundaryStarEdges (n := 1) (nX := 2) (nZ := 2)
+          0 0 isRight (by decide)) := by
+  rw [layerXPauli_commutes_layerZPauli_iff, rough_smooth_corner_overlap_card]
+  decide
 
 lemma unmodified_crossing_overlap_card :
     ((xySurfaceStarEdges (n := 2) (nX := 1) (nZ := 2) 0 0 0) ∩
@@ -1979,6 +1998,44 @@ lemma CSSLayerInput.physicalSupport_normalize {n k nX nZ : ℕ}
   apply Subtype.ext
   exact input.canonDefectEdge_idempotent edge
 
+lemma CSSLayerInput.physicalSupport_inter_of_owner {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ)
+    (firstSupport secondSupport : Finset (LayerSurfaceEdge n nX nZ))
+    (howner : ∀ first ∈ firstSupport, ∀ second ∈ secondSupport,
+      layerSurfaceEdgeOwner first = layerSurfaceEdgeOwner second) :
+    (by
+      classical
+      exact input.physicalSupport (firstSupport ∩ secondSupport) =
+        input.physicalSupport firstSupport ∩ input.physicalSupport secondSupport) := by
+  classical
+  ext edge
+  simp only [physicalSupport, Finset.mem_image, Finset.mem_inter]
+  constructor
+  · rintro ⟨first, ⟨hfirst, hsecond⟩, heq⟩
+    exact ⟨⟨first, hfirst, heq⟩, ⟨first, hsecond, heq⟩⟩
+  · rintro ⟨⟨first, hfirst, hfirstEdge⟩, ⟨second, hsecond, hsecondEdge⟩⟩
+    have heq := input.physicalEdge_injective_of_owner_eq first second
+      (howner first hfirst second hsecond) (hfirstEdge.trans hsecondEdge.symm)
+    subst second
+    exact ⟨first, ⟨hfirst, hsecond⟩, hfirstEdge⟩
+
+lemma CSSLayerInput.physicalSupport_overlap_card_of_owner {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ)
+    (firstSupport secondSupport : Finset (LayerSurfaceEdge n nX nZ))
+    (howner : ∀ first ∈ firstSupport, ∀ second ∈ secondSupport,
+      layerSurfaceEdgeOwner first = layerSurfaceEdgeOwner second) :
+    (by
+      classical
+      exact (input.physicalSupport firstSupport ∩
+        input.physicalSupport secondSupport).card = (firstSupport ∩ secondSupport).card) := by
+  classical
+  rw [← input.physicalSupport_inter_of_owner firstSupport secondSupport howner]
+  unfold physicalSupport
+  apply Finset.card_image_iff.mpr
+  intro first hfirst second hsecond heq
+  exact input.physicalEdge_injective_of_owner_eq first second
+    (howner first (Finset.mem_inter.mp hfirst).1 second (Finset.mem_inter.mp hsecond).2) heq
+
 noncomputable def CSSLayerInput.physicalXPauli {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (support : Finset (LayerSurfaceEdge n nX nZ)) :
     NQubitPauliGroupElement (Fintype.card (LayerPhysicalEdge input)) := by
@@ -2315,6 +2372,253 @@ lemma layerFaceEdge_yz_owned {n nX nZ : ℕ} (cell : LayerFaceCell n nX nZ) :
   have hlegs : (Finset.univ : Finset (Fin 4)) = {0, 1, 2, 3} := by decide
   rw [hlegs]
   simp [layerFaceEdge, yzOwnedPlaquetteEdges]
+
+def layerRoughBoundaryLegs (isUpper : Bool) : Finset (Fin 4) :=
+  {if isUpper then 0 else 2, 3, 1}
+
+lemma card_layerRoughBoundaryLegs (isUpper : Bool) :
+    (layerRoughBoundaryLegs isUpper).card = 3 := by
+  cases isUpper <;> decide
+
+def layerRoughBoundaryCell {n nX nZ : ℕ} (xCoord : Fin nZ) (yCoord : Fin n)
+    (isUpper : Bool) (hnX : 0 < nX) : LayerFaceCell n nX nZ where
+  xCell := xCoord
+  yCell := yCoord
+  zCell := if isUpper then ⟨nX - 1, by omega⟩ else ⟨0, hnX⟩
+
+noncomputable def xzOwnedRoughBoundaryPlaquetteEdges {n nX nZ : ℕ}
+    (qubit : Fin n) (xCoord : Fin nZ) (isUpper : Bool) (hnX : 0 < nX) :
+    Finset (LayerSurfaceEdge n nX nZ) := by
+  classical
+  exact (layerRoughBoundaryLegs isUpper).image
+    (layerFaceEdge .xz (layerRoughBoundaryCell xCoord qubit isUpper hnX))
+
+noncomputable def yzOwnedRoughBoundaryPlaquetteEdges {n nX nZ : ℕ}
+    (check : Fin nZ) (yCoord : Fin n) (isUpper : Bool) (hnX : 0 < nX) :
+    Finset (LayerSurfaceEdge n nX nZ) := by
+  classical
+  exact (layerRoughBoundaryLegs isUpper).image
+    (layerFaceEdge .yz (layerRoughBoundaryCell check yCoord isUpper hnX))
+
+lemma xzOwnedRoughBoundaryPlaquetteEdges_position {n nX nZ : ℕ}
+    (qubit : Fin n) (xCoord : Fin nZ) (isUpper : Bool) (hnX : 0 < nX) :
+    (xzOwnedRoughBoundaryPlaquetteEdges qubit xCoord isUpper hnX).image
+        layerSurfaceEdgePosition =
+      xzRoughBoundaryPlaquetteEdges qubit xCoord isUpper hnX := by
+  classical
+  cases isUpper <;>
+    simp [xzOwnedRoughBoundaryPlaquetteEdges, layerRoughBoundaryLegs,
+      layerRoughBoundaryCell, layerFaceEdge,
+      layerSurfaceEdgePosition, xzRoughBoundaryPlaquetteEdges, layerXEdge,
+      layerZEdge]
+
+lemma yzOwnedRoughBoundaryPlaquetteEdges_position {n nX nZ : ℕ}
+    (check : Fin nZ) (yCoord : Fin n) (isUpper : Bool) (hnX : 0 < nX) :
+    (yzOwnedRoughBoundaryPlaquetteEdges check yCoord isUpper hnX).image
+        layerSurfaceEdgePosition =
+      yzRoughBoundaryPlaquetteEdges check yCoord isUpper hnX := by
+  classical
+  cases isUpper <;>
+    simp [yzOwnedRoughBoundaryPlaquetteEdges, layerRoughBoundaryLegs,
+      layerRoughBoundaryCell, layerFaceEdge,
+      layerSurfaceEdgePosition, yzRoughBoundaryPlaquetteEdges, yzLayerYEdge,
+      layerYEdge, layerZEdge]
+
+noncomputable def CSSLayerInput.xzPhysicalRoughBoundaryPlaquette {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (qubit : Fin n) (xCoord : Fin nZ)
+    (isUpper : Bool) (hnX : 0 < nX) :
+    NQubitPauliGroupElement (Fintype.card (LayerPhysicalEdge input)) :=
+  input.localZPlaquette .xz (layerRoughBoundaryCell xCoord qubit isUpper hnX)
+    (layerRoughBoundaryLegs isUpper)
+
+noncomputable def CSSLayerInput.yzPhysicalRoughBoundaryPlaquette {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (check : Fin nZ) (yCoord : Fin n)
+    (isUpper : Bool) (hnX : 0 < nX) :
+    NQubitPauliGroupElement (Fintype.card (LayerPhysicalEdge input)) :=
+  input.localZPlaquette .yz (layerRoughBoundaryCell check yCoord isUpper hnX)
+    (layerRoughBoundaryLegs isUpper)
+
+lemma CSSLayerInput.xzPhysicalRoughBoundaryPlaquette_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (qubit : Fin n) (xCoord : Fin nZ)
+    (isUpper : Bool) (hnX : 0 < nX) :
+    NQubitPauliGroupElement.weight
+        (input.xzPhysicalRoughBoundaryPlaquette qubit xCoord isUpper hnX) = 3 := by
+  rw [xzPhysicalRoughBoundaryPlaquette, input.localZPlaquette_weight,
+    card_layerRoughBoundaryLegs]
+
+lemma CSSLayerInput.yzPhysicalRoughBoundaryPlaquette_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (check : Fin nZ) (yCoord : Fin n)
+    (isUpper : Bool) (hnX : 0 < nX) :
+    NQubitPauliGroupElement.weight
+        (input.yzPhysicalRoughBoundaryPlaquette check yCoord isUpper hnX) = 3 := by
+  rw [yzPhysicalRoughBoundaryPlaquette, input.localZPlaquette_weight,
+    card_layerRoughBoundaryLegs]
+
+lemma CSSLayerInput.xzPhysicalRoughBoundaryPlaquette_isZType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (qubit : Fin n) (xCoord : Fin nZ)
+    (isUpper : Bool) (hnX : 0 < nX) :
+    NQubitPauliGroupElement.IsZTypeElement
+      (input.xzPhysicalRoughBoundaryPlaquette qubit xCoord isUpper hnX) :=
+  input.localZPlaquette_isZType _ _ _
+
+lemma CSSLayerInput.yzPhysicalRoughBoundaryPlaquette_isZType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (check : Fin nZ) (yCoord : Fin n)
+    (isUpper : Bool) (hnX : 0 < nX) :
+    NQubitPauliGroupElement.IsZTypeElement
+      (input.yzPhysicalRoughBoundaryPlaquette check yCoord isUpper hnX) :=
+  input.localZPlaquette_isZType _ _ _
+
+abbrev LayerSmoothBoundarySite (n nX _nZ : ℕ) :=
+  (Fin n × Fin (nX - 1)) ⊕ (Fin nX × Fin (n - 1))
+
+def layerSmoothBoundaryOwner {n nX nZ : ℕ} :
+    LayerSmoothBoundarySite n nX nZ → LayerIndex n nX nZ
+  | Sum.inl (qubit, _) => Sum.inl qubit
+  | Sum.inr (check, _) => Sum.inr (Sum.inl check)
+
+def layerSmoothBoundaryEdge {n nX nZ : ℕ}
+    (site : LayerSmoothBoundarySite n nX nZ) (isRight : Bool) (hnZ : 0 < nZ) :
+    Fin 3 → LayerSurfaceEdge n nX nZ :=
+  let xCell : Fin nZ := if isRight then ⟨nZ - 1, by omega⟩ else ⟨0, hnZ⟩
+  let xVertex : Fin (nZ + 1) := if isRight then ⟨nZ, by omega⟩ else ⟨0, by omega⟩
+  match site with
+  | Sum.inl (qubit, zCoord) => fun leg =>
+      match leg.val with
+      | 0 => Sum.inl (qubit, Sum.inl (xCell, interiorSuccVertex zCoord))
+      | 1 => Sum.inl (qubit, Sum.inr (xVertex, interiorCast zCoord))
+      | _ => Sum.inl (qubit, Sum.inr (xVertex, interiorSucc zCoord))
+  | Sum.inr (check, yCoord) => fun leg =>
+      match leg.val with
+      | 0 => Sum.inr (Sum.inl (check, Sum.inl (xCell, interiorSuccVertex yCoord)))
+      | 1 => xyLayerYEdge check xVertex (interiorCast yCoord)
+      | _ => xyLayerYEdge check xVertex (interiorSucc yCoord)
+
+lemma layerSmoothBoundaryEdge_owner {n nX nZ : ℕ}
+    (site : LayerSmoothBoundarySite n nX nZ) (isRight : Bool) (hnZ : 0 < nZ)
+    (leg : Fin 3) :
+    layerSurfaceEdgeOwner (layerSmoothBoundaryEdge site isRight hnZ leg) =
+      layerSmoothBoundaryOwner site := by
+  rcases site with ⟨qubit, zCoord⟩ | ⟨check, yCoord⟩ <;> fin_cases leg <;> rfl
+
+lemma layerSmoothBoundaryEdge_injective {n nX nZ : ℕ}
+    (site : LayerSmoothBoundarySite n nX nZ) (isRight : Bool) (hnZ : 0 < nZ) :
+    Function.Injective (layerSmoothBoundaryEdge site isRight hnZ) := by
+  intro first second heq
+  fin_cases first <;> fin_cases second <;>
+    rcases site with ⟨qubit, zCoord⟩ | ⟨check, yCoord⟩ <;>
+    simp_all [layerSmoothBoundaryEdge, xyLayerYEdge,
+      interiorCast_ne_succ, interiorSucc_ne_cast]
+
+lemma layerSmoothBoundaryEdge_xz_position {n nX nZ : ℕ}
+    (qubit : Fin n) (zCoord : Fin (nX - 1)) (isRight : Bool) (hnZ : 0 < nZ) :
+    (by
+      classical
+      exact (Finset.univ : Finset (Fin 3)).image
+          (fun leg => layerSurfaceEdgePosition
+            (layerSmoothBoundaryEdge (Sum.inl (qubit, zCoord)) isRight hnZ leg)) =
+        xzSmoothBoundaryStarEdges qubit zCoord isRight hnZ) := by
+  classical
+  have hlegs : (Finset.univ : Finset (Fin 3)) = {0, 1, 2} := by decide
+  rw [hlegs]
+  simp [layerSmoothBoundaryEdge, layerSurfaceEdgePosition,
+    xzSmoothBoundaryStarEdges, layerXEdge, layerZEdge]
+
+lemma layerSmoothBoundaryEdge_xy_position {n nX nZ : ℕ}
+    (check : Fin nX) (yCoord : Fin (n - 1)) (isRight : Bool) (hnZ : 0 < nZ) :
+    (by
+      classical
+      exact (Finset.univ : Finset (Fin 3)).image
+          (fun leg => layerSurfaceEdgePosition
+            (layerSmoothBoundaryEdge (Sum.inr (check, yCoord)) isRight hnZ leg)) =
+        xySmoothBoundaryStarEdges check yCoord isRight hnZ) := by
+  classical
+  have hlegs : (Finset.univ : Finset (Fin 3)) = {0, 1, 2} := by decide
+  rw [hlegs]
+  simp [layerSmoothBoundaryEdge, layerSurfaceEdgePosition,
+    xySmoothBoundaryStarEdges, xyLayerYEdge, layerXEdge, layerYEdge]
+
+lemma CSSLayerInput.physicalSmoothBoundaryEdge_injective {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (site : LayerSmoothBoundarySite n nX nZ)
+    (isRight : Bool) (hnZ : 0 < nZ) :
+    Function.Injective
+      (fun leg => input.physicalEdge (layerSmoothBoundaryEdge site isRight hnZ leg)) := by
+  intro first second heq
+  apply layerSmoothBoundaryEdge_injective site isRight hnZ
+  apply input.physicalEdge_injective_of_owner_eq _ _ _ heq
+  rw [layerSmoothBoundaryEdge_owner, layerSmoothBoundaryEdge_owner]
+
+noncomputable def CSSLayerInput.localSmoothBoundaryXStar {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (site : LayerSmoothBoundarySite n nX nZ)
+    (isRight : Bool) (hnZ : 0 < nZ) (legs : Finset (Fin 3)) :
+    NQubitPauliGroupElement (Fintype.card (LayerPhysicalEdge input)) := by
+  classical
+  exact input.physicalXPauli (legs.image (layerSmoothBoundaryEdge site isRight hnZ))
+
+lemma CSSLayerInput.localSmoothBoundaryXStar_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (site : LayerSmoothBoundarySite n nX nZ)
+    (isRight : Bool) (hnZ : 0 < nZ) (legs : Finset (Fin 3)) :
+    NQubitPauliGroupElement.weight
+        (input.localSmoothBoundaryXStar site isRight hnZ legs) = legs.card := by
+  classical
+  rw [localSmoothBoundaryXStar, physicalXPauli_weight]
+  simp only [physicalSupport, Finset.image_image]
+  exact Finset.card_image_of_injective _
+    (input.physicalSmoothBoundaryEdge_injective site isRight hnZ)
+
+lemma CSSLayerInput.localSmoothBoundaryXStar_univ_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (site : LayerSmoothBoundarySite n nX nZ)
+    (isRight : Bool) (hnZ : 0 < nZ) :
+    NQubitPauliGroupElement.weight
+        (input.localSmoothBoundaryXStar site isRight hnZ Finset.univ) = 3 := by
+  rw [input.localSmoothBoundaryXStar_weight]
+  simp
+
+lemma CSSLayerInput.localSmoothBoundaryXStar_isXType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (site : LayerSmoothBoundarySite n nX nZ)
+    (isRight : Bool) (hnZ : 0 < nZ) (legs : Finset (Fin 3)) :
+    NQubitPauliGroupElement.IsXTypeElement
+      (input.localSmoothBoundaryXStar site isRight hnZ legs) := by
+  classical
+  exact input.physicalXPauli_isXType _
+
+lemma CSSLayerInput.physicalBoundaryCorner_checks_commute {n k : ℕ}
+    (input : CSSLayerInput n k 2 2) (qubit : Fin n) (isRight isUpper : Bool) :
+    input.localSmoothBoundaryXStar (Sum.inl (qubit, 0)) isRight (by decide) Finset.univ *
+        input.xzPhysicalRoughBoundaryPlaquette qubit
+          (if isRight then 1 else 0) isUpper (by decide) =
+      input.xzPhysicalRoughBoundaryPlaquette qubit
+          (if isRight then 1 else 0) isUpper (by decide) *
+        input.localSmoothBoundaryXStar (Sum.inl (qubit, 0)) isRight
+          (by decide) Finset.univ := by
+  classical
+  let xSupport : Finset (LayerSurfaceEdge n 2 2) := Finset.univ.image
+    (layerSmoothBoundaryEdge (Sum.inl (qubit, 0)) isRight (by decide))
+  let zSupport : Finset (LayerSurfaceEdge n 2 2) :=
+    xzOwnedRoughBoundaryPlaquetteEdges qubit (if isRight then 1 else 0)
+      isUpper (by decide)
+  change input.physicalXPauli xSupport * input.physicalZPauli zSupport =
+    input.physicalZPauli zSupport * input.physicalXPauli xSupport
+  rw [input.physicalPaulis_commute_iff]
+  have howner : ∀ first ∈ xSupport, ∀ second ∈ zSupport,
+      layerSurfaceEdgeOwner first = layerSurfaceEdgeOwner second := by
+    intro first hfirst second hsecond
+    dsimp only [xSupport] at hfirst
+    dsimp only [zSupport, xzOwnedRoughBoundaryPlaquetteEdges] at hsecond
+    rcases Finset.mem_image.mp hfirst with ⟨firstLeg, hfirstLeg, rfl⟩
+    rcases Finset.mem_image.mp hsecond with ⟨secondLeg, hsecondLeg, rfl⟩
+    rw [layerSmoothBoundaryEdge_owner, layerFaceEdge_owner]
+    rfl
+  rw [input.physicalSupport_overlap_card_of_owner xSupport zSupport howner]
+  have hoverlap : (xSupport ∩ zSupport).card = 2 := by
+    have hlegs : (Finset.univ : Finset (Fin 3)) = {0, 1, 2} := by decide
+    dsimp only [xSupport, zSupport]
+    rw [hlegs]
+    cases isRight <;> cases isUpper <;>
+      simp [layerSmoothBoundaryEdge, xzOwnedRoughBoundaryPlaquetteEdges,
+        layerRoughBoundaryLegs, layerRoughBoundaryCell, layerFaceEdge,
+        interiorCast, interiorSucc, interiorSuccVertex]
+  rw [hoverlap]
+  decide
 
 /-- Position of an incident data layer along one ordered check layer. -/
 inductive CheckLayerJunctionPosition

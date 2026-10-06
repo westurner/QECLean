@@ -46,7 +46,7 @@ Implemented in `Layer.lean`:
   projection recovers its existing surface-star geometry. `localXStar` has
   phase-zero X type and weight at most six whenever at most six legs are
   selected. No diagram-specific line/point template is inferred from this
-  generic combinator; boundary legs and coupling-specific plaquettes remain missing.
+  generic combinator; defect-specific boundary and coupling supports remain missing.
 - `LayerFaceCell`, `LayerFacePlane`, and `layerFaceEdge` give four owned legs
   for a planar face. Their projections recover all three existing surface
   plaquettes, and the yz-owned support is recovered exactly. The canonical
@@ -54,6 +54,15 @@ Implemented in `Layer.lean`:
   preserves the exact number of selected legs and has phase-zero Z type.
   Every such check has weight at most four; a full face has weight exactly
   four. These are planar primitives, not defect replacement/coupling checks.
+- Standard rough xz/yz boundaries and smooth xz/xy boundaries now have owned
+  three-leg primitives, projection laws, phase-zero physical lifts, and exact
+  weight-three laws. Rough plaquettes keep the inward horizontal edge, as in
+  the paper's surface-code diagram; the previous outward-edge convention
+  anticommutes with a neighboring smooth star. All four two-by-two corner
+  overlaps now have cardinality two. Their normalized physical checks commute
+  for every supplied input and data-layer owner. Same-owner intersection and
+  overlap-cardinality transport are proved; this does not apply unrestrictedly
+  to supports on different owners.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -165,8 +174,10 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   three surface-star projection laws are implemented, along with normalized
   X-star type and six-leg weight bounds. Four-leg planar face combinators,
   all three projection laws, owner-fiber injectivity, and exact normalized
-  Z-plaquette weights are also implemented. Add boundary-aware star/face
-  legs and coupling-specific plaquette supports in owned coordinates. Specify the
+  Z-plaquette weights are also implemented. Standard rough/smooth boundary
+  legs, their projection and weight-three laws, and normalized corner CSS
+  regressions are implemented. Rough plaquettes omit the outer horizontal
+  edge. Add defect-specific boundary and coupling plaquette supports. Specify the
   actual terminated direction for first/last incidences from the diagrams;
   do not infer it from the junction's axis name. Handle the existing `single`
   incidence case and degenerate dimensions explicitly. Record which surface
@@ -300,6 +311,15 @@ physical support/Pauli lifts, bulk local-star legs, and planar-face combinators.
 theorems cover active and inactive gates, unmatched upper boundaries, all
 three star and face plane projections, exact yz-owned face recovery, exact
 normalized planar Z-check weights, and loss of overlap parity under gluing.
+
+The standard-boundary increment adds owned rough/smooth legs and exact
+physical weights, fixes the inward-edge rough truncation, and verifies all
+four two-by-two rough/smooth corners before and after normalization. The
+surface-code diagram (`TikzFiguresUnrotated.pdf`, page 10) was inspected; the
+source assets were left untouched. A standard boundary primitive is not a
+replacement slot: full face slots at truncated boundaries still need to be
+suppressed by the total construction. Defect termination, `single` incidence,
+coupling supports, and the complete line/point case table remain outstanding.
 
 Focused Lean checks and the Layer build (`3,147` jobs) pass, with the existing
 linter warnings unchanged. The parent documentation build also succeeds with
