@@ -27,7 +27,26 @@ Implemented in `Layer.lean`:
   position projection, and commute for arbitrary cross-layer coordinates.
   Generic numbered support lifts preserve support and weight and characterize
   X/Z commutation by even overlap. This space is not yet connected to
-  `LayerOutputSize` or defect coupling.
+  the legacy `LayerOutputSize` or final defect templates.
+- The proposed `canonDefectEdge` convention normalizes active X/Z line edges
+  to their data-layer owners and matched y-segment edges to xy owners.
+  Idempotence, position preservation, active/inactive gates, upper-boundary
+  preservation, and an exact fixed-point count are proved. `LayerPhysicalEdge`
+  is the fixed-point carrier; `defectGluingSetoid` equates precisely those
+  ambient edges with equal canonical representatives. This is not yet a
+  validated reconstruction of the paper's coupling and replacement rules.
+- `physicalSupport` transports owned supports to physical representatives,
+  does not increase cardinality, and is unchanged by prior normalization.
+  Physical X/Z Pauli lifts have phase-zero homogeneous type and exact support
+  weight; their commutation criterion uses overlap after normalization.
+  `normalization_can_change_overlap_parity` proves why pre-gluing evenness
+  cannot be assumed to survive gluing.
+- Twelve `LayerHalfStarLeg` slots describe the four bulk legs in each of the
+  xz, xy, and yz planes at `LayerInteriorStarVertex`. Each four-leg plane
+  projection recovers its existing surface-star geometry. `localXStar` has
+  phase-zero X type and weight at most six whenever at most six legs are
+  selected. No diagram-specific line/point template is inferred from this
+  generic combinator; boundary legs and plaquette combinators remain missing.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -91,8 +110,9 @@ Still incomplete:
   Consequently, appending the existing lists unchanged cannot construct a
   stabilizer code. The layer-owned space addresses uncoupled crossing identity
   and the owned xy-star/yz-plaquette commutation obstruction; defect coupling
-  and replacement-aware support transport are still
-  required before changing the output qubit index.
+  and validated replacement templates are still required before changing the
+  output qubit index. Proposed normalization and physical support transport
+  APIs are now available, but are not a commutation proof for final defects.
 - The full figure-defined line- and point-defect checks are not encoded. The
   x/z and interior nontrivial-y templates above are only partial candidates;
   y cross-commutation, complete line lists, replacement rules, and all 22
@@ -134,8 +154,10 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   coupling qubits, truncated layers, and superlattice spacing `c`, before
   replacing `LayerOutputSize`. These normalization laws alone do not prove
   that the convention realizes the paper's code.
-2. **Local legs and boundary rules.** Define vertex-centered half-star legs
-  and face-centered plaquette supports in owned coordinates. Specify the
+2. **Local legs and boundary rules.** Twelve bulk half-star leg slots and their
+  three surface-star projection laws are implemented, along with normalized
+  X-star type and six-leg weight bounds. Add boundary-aware legs and
+  face-centered plaquette supports in owned coordinates. Specify the
   actual terminated direction for first/last incidences from the diagrams;
   do not infer it from the junction's axis name. Handle the existing `single`
   incidence case and degenerate dimensions explicitly. Record which surface
@@ -260,3 +282,18 @@ Final assembly still requires explicit defect coupling and replacement rules
 on the layer-owned qubit space. The old shared-edge lists cannot satisfy the
 required CSS commutation law unchanged. No output-code constructor,
 dimension/distance theorem, or RG decoder is claimed by these increments.
+
+### Canonical-Edge Architecture Loop
+
+This loop implements the proposed active-defect normalization and its
+fixed-point physical carrier, followed by the gluing equivalence relation,
+physical support/Pauli lifts, and bulk local-star leg combinators. Regression
+theorems cover active and inactive gates, unmatched upper boundaries, all
+three four-leg plane projections, and loss of overlap parity under gluing.
+
+Focused Lean checks and the Layer build (`3,147` jobs) pass, with the existing
+linter warnings unchanged. The parent documentation build also succeeds with
+29 warnings about existing documentation references. The eight-step plan now makes diagram validation,
+slot uniqueness, normalized local embeddings, rank, dressed logical operators,
+and finite slice-distance constants explicit obligations. None is replaced by
+an Euler count, an assumed pivot assignment, or a supplied certificate.

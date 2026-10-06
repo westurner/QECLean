@@ -33,7 +33,8 @@ input CSS code.
   to QECLean's `Fin`-indexed Pauli qubits.
 - Add a separate layer-owned surface-edge space with exact cardinality and
   owner/position injectivity. Coincident uncoupled xy/yz edges remain distinct.
-  This is pre-defect geometry, not yet the output qubit index or defect gluing.
+  This is the ambient geometry for proposed normalization, not yet the legacy
+  output qubit index or a validated final defect construction.
 - Implement the proposed active-defect canonical projection on owned edges.
   Active xy x-edges and yz z-edges normalize to data-layer copies; matched yz
   y-edges normalize to xy copies. Prove idempotence, spatial preservation,
@@ -41,6 +42,14 @@ input CSS code.
   `LayerPhysicalEdge`. Its exact count is the ambient owned-edge count minus
   removed representatives. Paper-diagram correspondence and check replacement
   correctness remain unproved; the existing output index is unchanged.
+- Supply the gluing setoid, canonical physical support transport, numbering,
+  and phase-zero X/Z Pauli lifts with exact support weights. Commutation is
+  characterized by normalized support overlap. A kernel-decided regression
+  proves that idempotent normalization can destroy even overlap.
+- Add twelve bulk half-star leg slots and prove that each four-leg plane
+  projection recovers its original surface star. Selecting at most six legs
+  yields a normalized X check of weight at most six. Boundary and plaquette
+  combinators and the diagram-specific case table are not yet implemented.
 - Lift owned xy stars and yz plaquettes to Paulis, prove weight four, and
   prove cross-layer disjointness and commutation for arbitrary coordinates.
   Their coordinate projections recover the original cuboid supports. A
@@ -214,6 +223,12 @@ the Layer construction plan. Recorded checks at that checkpoint:
   The installed pinned toolchain in the parent container was used with
   explicit user authorization. Final defect coupling/replacement integration
   and the output CSS/dimension/distance and RG obligations remain unfinished.
+- The canonical-edge architecture loop also passes focused Lean checks and
+  the `3,147`-job Layer build for normalization, physical support/Pauli lifts,
+  and bulk-leg projection regressions. The original linter warnings remain;
+  no proof placeholders or custom axioms were introduced.
+  The parent documentation gate (`make -C docs html`) also succeeds with
+  29 warnings about existing documentation references.
 - The Sustainable Factory root devcontainer installs PyMuPDF in an isolated
   `/opt/pdf-tools` virtual environment for inspecting the paper's PDF check
   diagrams. The root image could not be built here because Docker/Podman/Buildah

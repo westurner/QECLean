@@ -1927,6 +1927,237 @@ lemma CSSLayerInput.physicalEdge_surjective {n k nX nZ : ℕ}
   apply Subtype.ext
   exact edge.property
 
+lemma CSSLayerInput.physicalEdge_eq_iff {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (first second : LayerSurfaceEdge n nX nZ) :
+    input.physicalEdge first = input.physicalEdge second ↔
+      input.canonDefectEdge first = input.canonDefectEdge second :=
+  Subtype.ext_iff
+
+noncomputable def CSSLayerInput.defectGluingSetoid {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) : Setoid (LayerSurfaceEdge n nX nZ) where
+  r first second := input.canonDefectEdge first = input.canonDefectEdge second
+  iseqv := ⟨fun _ => rfl, fun h => h.symm, fun hfirst hsecond => hfirst.trans hsecond⟩
+
+noncomputable def CSSLayerInput.physicalEdgeEquiv {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) :
+    LayerPhysicalEdge input ≃ Fin (Fintype.card (LayerPhysicalEdge input)) :=
+  Fintype.equivFin _
+
+noncomputable def CSSLayerInput.physicalSupport {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (support : Finset (LayerSurfaceEdge n nX nZ)) :
+    Finset (LayerPhysicalEdge input) := by
+  classical
+  exact support.image input.physicalEdge
+
+lemma CSSLayerInput.physicalSupport_card_le {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (support : Finset (LayerSurfaceEdge n nX nZ)) :
+    (input.physicalSupport support).card ≤ support.card := by
+  classical
+  exact Finset.card_image_le
+
+lemma CSSLayerInput.physicalSupport_normalize {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (support : Finset (LayerSurfaceEdge n nX nZ)) :
+    (by
+      classical
+      exact input.physicalSupport (support.image input.canonDefectEdge) =
+        input.physicalSupport support) := by
+  classical
+  simp only [physicalSupport, Finset.image_image]
+  apply Finset.image_congr
+  intro edge hedge
+  apply Subtype.ext
+  exact input.canonDefectEdge_idempotent edge
+
+noncomputable def CSSLayerInput.physicalXPauli {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (support : Finset (LayerSurfaceEdge n nX nZ)) :
+    NQubitPauliGroupElement (Fintype.card (LayerPhysicalEdge input)) := by
+  classical
+  exact numberedSupportPauli input.physicalEdgeEquiv PauliOperator.X
+    (input.physicalSupport support)
+
+noncomputable def CSSLayerInput.physicalZPauli {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (support : Finset (LayerSurfaceEdge n nX nZ)) :
+    NQubitPauliGroupElement (Fintype.card (LayerPhysicalEdge input)) := by
+  classical
+  exact numberedSupportPauli input.physicalEdgeEquiv PauliOperator.Z
+    (input.physicalSupport support)
+
+lemma CSSLayerInput.physicalXPauli_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (support : Finset (LayerSurfaceEdge n nX nZ)) :
+    NQubitPauliGroupElement.weight (input.physicalXPauli support) =
+      (input.physicalSupport support).card := by
+  classical
+  exact weight_numberedSupportPauli _ _ _ (by decide)
+
+lemma CSSLayerInput.physicalZPauli_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (support : Finset (LayerSurfaceEdge n nX nZ)) :
+    NQubitPauliGroupElement.weight (input.physicalZPauli support) =
+      (input.physicalSupport support).card := by
+  classical
+  exact weight_numberedSupportPauli _ _ _ (by decide)
+
+lemma CSSLayerInput.physicalXPauli_isXType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (support : Finset (LayerSurfaceEdge n nX nZ)) :
+    NQubitPauliGroupElement.IsXTypeElement (input.physicalXPauli support) := by
+  classical
+  refine ⟨rfl, ?_⟩
+  intro qubit
+  change PauliOperator.IsXType
+    (if input.physicalEdgeEquiv.symm qubit ∈ input.physicalSupport support
+      then PauliOperator.X else PauliOperator.I)
+  split_ifs <;> simp [PauliOperator.IsXType]
+
+lemma CSSLayerInput.physicalZPauli_isZType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (support : Finset (LayerSurfaceEdge n nX nZ)) :
+    NQubitPauliGroupElement.IsZTypeElement (input.physicalZPauli support) := by
+  classical
+  refine ⟨rfl, ?_⟩
+  intro qubit
+  change PauliOperator.IsZType
+    (if input.physicalEdgeEquiv.symm qubit ∈ input.physicalSupport support
+      then PauliOperator.Z else PauliOperator.I)
+  split_ifs <;> simp [PauliOperator.IsZType]
+
+lemma CSSLayerInput.physicalPaulis_commute_iff {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ)
+    (xSupport zSupport : Finset (LayerSurfaceEdge n nX nZ)) :
+    input.physicalXPauli xSupport * input.physicalZPauli zSupport =
+        input.physicalZPauli zSupport * input.physicalXPauli xSupport ↔
+      (by
+        classical
+        exact Even (input.physicalSupport xSupport ∩ input.physicalSupport zSupport).card) := by
+  classical
+  exact numberedSupportPauli_commutes_iff _ _ _
+
+lemma normalization_can_change_overlap_parity :
+  ∃ normalize : Fin 2 → Fin 2, (∀ edge, normalize (normalize edge) = normalize edge) ∧
+      Even ((Finset.univ : Finset (Fin 2)) ∩ Finset.univ).card ∧
+      ¬Even ((Finset.univ.image normalize) ∩ (Finset.univ.image normalize)).card := by
+  refine ⟨fun _ => 0, ?_, ?_, ?_⟩
+  · intro edge
+    rfl
+  · decide
+  · decide
+
+structure LayerInteriorStarVertex (n nX nZ : ℕ) where
+  xCell : Fin (nZ - 1)
+  yCell : Fin (n - 1)
+  zCell : Fin (nX - 1)
+
+abbrev LayerHalfStarLeg := Fin 4 ⊕ (Fin 4 ⊕ Fin 4)
+
+lemma card_layerHalfStarLeg : Fintype.card LayerHalfStarLeg = 12 := by
+  simp [LayerHalfStarLeg]
+
+def layerHalfStarEdge {n nX nZ : ℕ} (vertex : LayerInteriorStarVertex n nX nZ) :
+    LayerHalfStarLeg → LayerSurfaceEdge n nX nZ
+  | Sum.inl leg =>
+      match leg.val with
+      | 0 => Sum.inl (interiorSucc vertex.yCell,
+          Sum.inl (interiorCast vertex.xCell, interiorSuccVertex vertex.zCell))
+      | 1 => Sum.inl (interiorSucc vertex.yCell,
+          Sum.inl (interiorSucc vertex.xCell, interiorSuccVertex vertex.zCell))
+      | 2 => Sum.inl (interiorSucc vertex.yCell,
+          Sum.inr (interiorSuccVertex vertex.xCell, interiorCast vertex.zCell))
+      | _ => Sum.inl (interiorSucc vertex.yCell,
+          Sum.inr (interiorSuccVertex vertex.xCell, interiorSucc vertex.zCell))
+  | Sum.inr (Sum.inl leg) =>
+      match leg.val with
+      | 0 => Sum.inr (Sum.inl (interiorSucc vertex.zCell,
+          Sum.inl (interiorCast vertex.xCell, interiorSuccVertex vertex.yCell)))
+      | 1 => Sum.inr (Sum.inl (interiorSucc vertex.zCell,
+          Sum.inl (interiorSucc vertex.xCell, interiorSuccVertex vertex.yCell)))
+      | 2 => xyLayerYEdge (interiorSucc vertex.zCell)
+          (interiorSuccVertex vertex.xCell) (interiorCast vertex.yCell)
+      | _ => xyLayerYEdge (interiorSucc vertex.zCell)
+          (interiorSuccVertex vertex.xCell) (interiorSucc vertex.yCell)
+  | Sum.inr (Sum.inr leg) =>
+      match leg.val with
+      | 0 => yzLayerYEdge (interiorSucc vertex.xCell)
+          (interiorCast vertex.yCell) (interiorSuccVertex vertex.zCell)
+      | 1 => yzLayerYEdge (interiorSucc vertex.xCell)
+          (interiorSucc vertex.yCell) (interiorSuccVertex vertex.zCell)
+      | 2 => Sum.inr (Sum.inr (interiorSucc vertex.xCell,
+          Sum.inr (interiorSuccVertex vertex.yCell, interiorCast vertex.zCell)))
+      | _ => Sum.inr (Sum.inr (interiorSucc vertex.xCell,
+          Sum.inr (interiorSuccVertex vertex.yCell, interiorSucc vertex.zCell)))
+
+lemma layerHalfStarEdge_xz_position {n nX nZ : ℕ}
+    (vertex : LayerInteriorStarVertex n nX nZ) :
+    (by
+      classical
+      exact (Finset.univ : Finset (Fin 4)).image
+          (fun leg => layerSurfaceEdgePosition (layerHalfStarEdge vertex (Sum.inl leg))) =
+        xzSurfaceStarEdges (interiorSucc vertex.yCell) vertex.xCell vertex.zCell) := by
+  classical
+  have hlegs : (Finset.univ : Finset (Fin 4)) = {0, 1, 2, 3} := by decide
+  rw [hlegs]
+  simp [layerHalfStarEdge, layerSurfaceEdgePosition, xzSurfaceStarEdges,
+    layerXEdge, layerZEdge]
+
+lemma layerHalfStarEdge_xy_position {n nX nZ : ℕ}
+    (vertex : LayerInteriorStarVertex n nX nZ) :
+    (by
+      classical
+      exact (Finset.univ : Finset (Fin 4)).image
+          (fun leg => layerSurfaceEdgePosition
+            (layerHalfStarEdge vertex (Sum.inr (Sum.inl leg)))) =
+        xySurfaceStarEdges (interiorSucc vertex.zCell) vertex.xCell vertex.yCell) := by
+  classical
+  have hlegs : (Finset.univ : Finset (Fin 4)) = {0, 1, 2, 3} := by decide
+  rw [hlegs]
+  simp [layerHalfStarEdge, layerSurfaceEdgePosition, xySurfaceStarEdges,
+    xyLayerYEdge, layerXEdge, layerYEdge, interiorSuccVertex]
+
+lemma layerHalfStarEdge_yz_position {n nX nZ : ℕ}
+    (vertex : LayerInteriorStarVertex n nX nZ) :
+    (by
+      classical
+      exact (Finset.univ : Finset (Fin 4)).image
+          (fun leg => layerSurfaceEdgePosition
+            (layerHalfStarEdge vertex (Sum.inr (Sum.inr leg)))) =
+        yzSurfaceStarEdges (interiorSucc vertex.xCell) vertex.yCell vertex.zCell) := by
+  classical
+  have hlegs : (Finset.univ : Finset (Fin 4)) = {0, 1, 2, 3} := by decide
+  rw [hlegs]
+  simp [layerHalfStarEdge, layerSurfaceEdgePosition, yzSurfaceStarEdges,
+    yzLayerYEdge, layerYEdge, layerZEdge, interiorSuccVertex]
+
+noncomputable def CSSLayerInput.localStarSupport {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (vertex : LayerInteriorStarVertex n nX nZ)
+    (legs : Finset LayerHalfStarLeg) : Finset (LayerPhysicalEdge input) := by
+  classical
+  exact input.physicalSupport (legs.image (layerHalfStarEdge vertex))
+
+lemma CSSLayerInput.localStarSupport_card_le {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (vertex : LayerInteriorStarVertex n nX nZ)
+    (legs : Finset LayerHalfStarLeg) :
+    (input.localStarSupport vertex legs).card ≤ legs.card := by
+  classical
+  exact (input.physicalSupport_card_le _).trans Finset.card_image_le
+
+noncomputable def CSSLayerInput.localXStar {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (vertex : LayerInteriorStarVertex n nX nZ)
+    (legs : Finset LayerHalfStarLeg) :
+    NQubitPauliGroupElement (Fintype.card (LayerPhysicalEdge input)) := by
+  classical
+  exact input.physicalXPauli (legs.image (layerHalfStarEdge vertex))
+
+lemma CSSLayerInput.localXStar_weight_le_six {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (vertex : LayerInteriorStarVertex n nX nZ)
+    (legs : Finset LayerHalfStarLeg) (hlegs : legs.card ≤ 6) :
+    NQubitPauliGroupElement.weight (input.localXStar vertex legs) ≤ 6 := by
+  classical
+  rw [localXStar, physicalXPauli_weight]
+  exact (input.localStarSupport_card_le vertex legs).trans hlegs
+
+lemma CSSLayerInput.localXStar_isXType {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (vertex : LayerInteriorStarVertex n nX nZ)
+    (legs : Finset LayerHalfStarLeg) :
+    NQubitPauliGroupElement.IsXTypeElement (input.localXStar vertex legs) := by
+  classical
+  exact input.physicalXPauli_isXType _
+
 /-- Position of an incident data layer along one ordered check layer. -/
 inductive CheckLayerJunctionPosition
   | single
