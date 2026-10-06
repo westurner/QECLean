@@ -18,6 +18,12 @@ Implemented in `Layer.lean`:
   with matching logical-qubit count and an explicit input-distance lower bound.
 - A finite oriented-edge indexing of a cuboid, edge-to-qubit numbering, and
   X/Z Pauli lifts from finite edge supports.
+- A separate pre-defect `LayerSurfaceEdge` space retains layer ownership of
+  each surface edge. Its exact count is
+  `6 * n * nX * nZ + 2 * (n * nX + n * nZ + nX * nZ)`.
+  Owner and cuboid position jointly identify each edge. Coincident xy/yz
+  crossing edges have equal positions but are distinct qubits. This space is
+  not yet connected to `LayerOutputSize`, the Pauli lifts, or defect coupling.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -75,6 +81,13 @@ Still incomplete:
 
 - `LayerCode.outputCode` is still an input certificate; the CSS input does not
   yet produce the output code.
+- The unmodified shared-edge surface lists provably fail cross-commutation:
+  `unmodified_surface_candidates_not_cross_commuting` exhibits an xy star and
+  yz plaquette with one common edge in a `n = 2, nX = 1, nZ = 2` cuboid.
+  Consequently, appending the existing lists unchanged cannot construct a
+  stabilizer code. The layer-owned space addresses uncoupled crossing identity
+  only; defect coupling and replacement-aware support transport are still
+  required before changing the output qubit index.
 - The full figure-defined line- and point-defect checks are not encoded. The
   x/z and interior nontrivial-y templates above are only partial candidates;
   y cross-commutation, complete line lists, replacement rules, and all 22
@@ -109,7 +122,12 @@ Factory environment. Before starting, check `command -v lean lake rg` and
    cardinality, axis conventions, and boundary coordinates against the paper's
    lattice model. Record the relationship between the finite edge count and
    the paper's scaling equation before calling this the paper's exact output
-   qubit count.
+  qubit count. The shared-edge crossing regression is now proved and the
+  pre-defect layer-owned edge space is implemented. Connect that space to
+  explicit defect coupling and superlattice spacing rather than identifying
+  coincident edges merely because their coordinates agree. The paper's
+  physical-qubit scaling discussion uses a spacing constant `c`; neither
+  current finite count is an exact paper-output count.
 2. **Reconcile surface checks with defects.** Rough/smooth boundary supports
   and their cardinality laws are implemented. Confirm which ordinary surface
   checks must be omitted or replaced where line defects meet those boundaries.

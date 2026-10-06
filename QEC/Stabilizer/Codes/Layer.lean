@@ -266,6 +266,71 @@ lemma card_layerLatticeEdge_upper_bound {n nX nZ : ℕ}
         (2 * nZ) * n * (2 * nX) + (2 * nZ) * (2 * n) * nX := by omega
     _ = 12 * n * nX * nZ := by ring
 
+abbrev LayerSurfaceEdge (n nX nZ : ℕ) : Type :=
+  (Fin n × ((Fin nZ × Fin (nX + 1)) ⊕ (Fin (nZ + 1) × Fin nX))) ⊕
+    ((Fin nX × ((Fin nZ × Fin (n + 1)) ⊕ (Fin (nZ + 1) × Fin n))) ⊕
+      (Fin nZ × ((Fin n × Fin (nX + 1)) ⊕ (Fin (n + 1) × Fin nX))))
+
+lemma card_layerSurfaceEdge (n nX nZ : ℕ) :
+    Fintype.card (LayerSurfaceEdge n nX nZ) =
+      6 * n * nX * nZ + 2 * (n * nX + n * nZ + nX * nZ) := by
+  simp only [LayerSurfaceEdge, Fintype.card_sum, Fintype.card_prod, Fintype.card_fin]
+  ring
+
+def layerSurfaceEdgeOwner {n nX nZ : ℕ} :
+    LayerSurfaceEdge n nX nZ → LayerIndex n nX nZ
+  | Sum.inl (qubit, _) => Sum.inl qubit
+  | Sum.inr (Sum.inl (check, _)) => Sum.inr (Sum.inl check)
+  | Sum.inr (Sum.inr (check, _)) => Sum.inr (Sum.inr check)
+
+def layerSurfaceEdgePosition {n nX nZ : ℕ} :
+    LayerSurfaceEdge n nX nZ → LayerLatticeEdge n nX nZ
+  | Sum.inl (qubit, Sum.inl (xCoord, zCoord)) =>
+      Sum.inl (xCoord, qubit.castSucc, zCoord)
+  | Sum.inl (qubit, Sum.inr (xCoord, zCoord)) =>
+      Sum.inr (Sum.inr (xCoord, qubit.castSucc, zCoord))
+  | Sum.inr (Sum.inl (check, Sum.inl (xCoord, yCoord))) =>
+      Sum.inl (xCoord, yCoord, check.castSucc)
+  | Sum.inr (Sum.inl (check, Sum.inr (xCoord, yCoord))) =>
+      Sum.inr (Sum.inl (xCoord, yCoord, check.castSucc))
+  | Sum.inr (Sum.inr (check, Sum.inl (yCoord, zCoord))) =>
+      Sum.inr (Sum.inl (check.castSucc, yCoord, zCoord))
+  | Sum.inr (Sum.inr (check, Sum.inr (yCoord, zCoord))) =>
+      Sum.inr (Sum.inr (check.castSucc, yCoord, zCoord))
+
+def xyLayerYEdge {n nX nZ : ℕ}
+    (check : Fin nX) (xCoord : Fin (nZ + 1)) (yCoord : Fin n) :
+    LayerSurfaceEdge n nX nZ :=
+  Sum.inr (Sum.inl (check, Sum.inr (xCoord, yCoord)))
+
+def yzLayerYEdge {n nX nZ : ℕ}
+    (check : Fin nZ) (yCoord : Fin n) (zCoord : Fin (nX + 1)) :
+    LayerSurfaceEdge n nX nZ :=
+  Sum.inr (Sum.inr (check, Sum.inl (yCoord, zCoord)))
+
+lemma crossing_layer_edges_same_position {n nX nZ : ℕ}
+    (xCheck : Fin nX) (zCheck : Fin nZ) (yCoord : Fin n) :
+    layerSurfaceEdgePosition (xyLayerYEdge xCheck zCheck.castSucc yCoord) =
+      layerSurfaceEdgePosition (yzLayerYEdge zCheck yCoord xCheck.castSucc) := rfl
+
+lemma crossing_layer_edges_distinct {n nX nZ : ℕ}
+    (xCheck : Fin nX) (zCheck : Fin nZ) (yCoord : Fin n) :
+    xyLayerYEdge xCheck zCheck.castSucc yCoord ≠
+      yzLayerYEdge zCheck yCoord xCheck.castSucc := by
+  simp [xyLayerYEdge, yzLayerYEdge]
+
+lemma layerSurfaceEdgeOwner_position_injective {n nX nZ : ℕ} :
+    Function.Injective (fun edge : LayerSurfaceEdge n nX nZ =>
+      (layerSurfaceEdgeOwner edge, layerSurfaceEdgePosition edge)) := by
+  intro first second heq
+  rcases first with ⟨qubit, ⟨xCoord, zCoord⟩ | ⟨xCoord, zCoord⟩⟩ |
+    (⟨check, ⟨xCoord, yCoord⟩ | ⟨xCoord, yCoord⟩⟩ |
+      ⟨check, ⟨yCoord, zCoord⟩ | ⟨yCoord, zCoord⟩⟩) <;>
+    rcases second with ⟨other, ⟨otherX, otherZ⟩ | ⟨otherX, otherZ⟩⟩ |
+      (⟨other, ⟨otherX, otherY⟩ | ⟨otherX, otherY⟩⟩ |
+        ⟨other, ⟨otherY, otherZ⟩ | ⟨otherY, otherZ⟩⟩) <;>
+    simp_all [layerSurfaceEdgeOwner, layerSurfaceEdgePosition]
+
 /-- Output physical-qubit count fixed by the finite cuboid edge lattice. -/
 abbrev LayerOutputSize (n nX nZ : ℕ) : ℕ :=
   Fintype.card (LayerLatticeEdge n nX nZ)
@@ -1023,6 +1088,41 @@ theorem layerSurfaceZCheckCandidates_zType {n nX nZ : ℕ}
   rcases hg with hsurface | hboundary
   · exact layerSurfacePlaquetteCandidates_zType g hsurface
   · exact layerRoughBoundaryPlaquetteCandidates_zType g hboundary
+
+lemma unmodified_crossing_overlap_card :
+    ((xySurfaceStarEdges (n := 2) (nX := 1) (nZ := 2) 0 0 0) ∩
+      yzSurfacePlaquetteEdges (n := 2) (nX := 1) (nZ := 2) 1 0 0).card = 1 := by
+  classical
+  simp [xySurfaceStarEdges, yzSurfacePlaquetteEdges, layerXEdge, layerYEdge,
+    layerZEdge, interiorCast, interiorSucc, interiorSuccVertex]
+
+lemma unmodified_crossing_checks_not_commuting :
+    layerXPauli (xySurfaceStarEdges (n := 2) (nX := 1) (nZ := 2) 0 0 0) *
+        layerZPauli (yzSurfacePlaquetteEdges (n := 2) (nX := 1) (nZ := 2) 1 0 0) ≠
+      layerZPauli (yzSurfacePlaquetteEdges (n := 2) (nX := 1) (nZ := 2) 1 0 0) *
+        layerXPauli (xySurfaceStarEdges (n := 2) (nX := 1) (nZ := 2) 0 0 0) := by
+  rw [ne_eq, layerXPauli_commutes_layerZPauli_iff, unmodified_crossing_overlap_card]
+  decide
+
+theorem unmodified_surface_candidates_not_cross_commuting :
+    ∃ xCheck ∈ layerSurfaceXCheckCandidates (n := 2) (nX := 1) (nZ := 2),
+      ∃ zCheck ∈ layerSurfaceZCheckCandidates (n := 2) (nX := 1) (nZ := 2),
+        xCheck * zCheck ≠ zCheck * xCheck := by
+  classical
+  refine ⟨xySurfaceStar 0 0 0, ?_, yzSurfacePlaquette 1 0 0, ?_,
+    unmodified_crossing_checks_not_commuting⟩
+  · simp only [layerSurfaceXCheckCandidates, layerInteriorStarCandidates, List.mem_append]
+    left
+    right
+    left
+    apply List.mem_map.mpr
+    exact ⟨(0, 0, 0), by simp, rfl⟩
+  · simp only [layerSurfaceZCheckCandidates, layerSurfacePlaquetteCandidates, List.mem_append]
+    left
+    right
+    right
+    apply List.mem_map.mpr
+    exact ⟨(1, 0, 0), by simp, rfl⟩
 
 /-- Stabilizer subgroup generated by the unmodified bulk Z plaquettes. -/
 noncomputable def layerBulkZStabilizerGroup {n nX nZ : ℕ} :

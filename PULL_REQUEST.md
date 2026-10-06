@@ -31,6 +31,9 @@ input CSS code.
   correspondence, and a supplied input-distance lower-bound premise.
 - Define a finite oriented cuboid edge type, prove its cardinality, and map it
   to QECLean's `Fin`-indexed Pauli qubits.
+- Add a separate layer-owned surface-edge space with exact cardinality and
+  owner/position injectivity. Coincident uncoupled xy/yz edges remain distinct.
+  This is pre-defect geometry, not yet the output qubit index or defect gluing.
 - Lift finite edge supports to X/Z Paulis and prove support, type, and weight
   properties. Define four-edge surface plaquettes and four-edge interior stars
   on xz, xy, and yz layers, together with three-edge rough-boundary Z
@@ -141,6 +144,16 @@ dimensions, the formal edge count is now bounded between `3 n n_X n_Z` and
 `12 n n_X n_Z`, matching the paper's asymptotic volume scaling. Consequently,
 the paper's distance, locality, topology, and scaling results are not theorems
 of this Lean module.
+
+A concrete regression theorem now proves that the unmodified shared-edge
+surface candidate lists do not cross-commute: for `n = 2, nX = 1, nZ = 2`, an
+xy star and yz plaquette share one edge. Therefore these lists cannot simply
+be appended into a stabilizer code. `LayerSurfaceEdge` introduces layer-owned
+pre-defect qubits, whose count is
+`6 * n * nX * nZ + 2 * (n * nX + n * nZ + nX * nZ)`, to distinguish uncoupled
+coincident edges. Explicit defect coupling, replacements, and the paper's
+superlattice spacing constant `c` still need to be connected to the output
+index; neither finite edge count is claimed as the paper's exact output count.
 
 The paper explicitly leaves specialized decoding open, while noting that a
 general renormalization-group decoder is applicable. The exact X/Z sector
