@@ -119,10 +119,11 @@ point-defect supports are still missing. Interior nontrivial-y X/Z support
 candidates now have type and weight proofs, but their cross-sector overlap is
 not yet proved even and they are not integrated into the check lists. Plaquette
 applicability is now gated to first/middle x incidences and middle z incidences.
-The ten bulk and twelve boundary point-defect patterns are now indexed as a 22-case
-taxonomy. Boundary metadata marks the two extra-plaquette cases and six
-modified-star cases; diagrammed supports and adjacent-check replacements remain
-unimplemented. Its exact finite
+The ten bulk and twelve boundary point-defect patterns are now indexed as a
+22-case taxonomy. Bulk labels carry the X/Z incidence positions and oriented
+y-pattern; boundary metadata marks the two extra-plaquette cases and six
+modified-star cases. Diagrammed supports and adjacent-check replacements
+remain unimplemented. Its exact finite
 edge count is a formal indexing choice and has not been proved to match the
 paper's boundary-spacing convention or exact physical-qubit count. For positive
 dimensions, the formal edge count is now bounded between `3 n n_X n_Z` and

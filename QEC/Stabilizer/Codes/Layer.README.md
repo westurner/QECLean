@@ -35,7 +35,9 @@ Implemented in `Layer.lean`:
 - Finite indices for the ten bulk and twelve boundary point-defect case labels
   from the paper, with a theorem that the combined taxonomy has 22 cases. The
   indices classify configurations only; they do not define the diagrammed
-  point-check supports. Boundary applicability tags also identify the two
+  point-check supports. Each bulk label also carries its X/Z incidence
+  position (or a trivial crossing) and oriented y-junction pattern. Boundary
+  applicability tags identify the two
   middle-z cases with an extra plaquette and the six x-junction cases with
   modified boundary stars.
 - Candidate X-star supports and adjacent-face Z-plaquette supports at x/z

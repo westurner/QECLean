@@ -1782,6 +1782,58 @@ inductive LayerBulkPointDefectCase
   | middleXTrivialZNontrivialYThrough
   deriving DecidableEq
 
+/-- The local y-junction arrangement at a bulk point defect. -/
+inductive LayerBulkPointDefectYPattern
+  | nontrivial
+  | trivialBelowNontrivialAbove
+  | nontrivialBelowTrivialAbove
+  | nontrivialAbove
+  | nontrivialBelow
+  | nontrivialThrough
+  deriving DecidableEq, Repr
+
+/-- X-incidence position at a bulk point; `none` marks a trivial X crossing. -/
+def LayerBulkPointDefectCase.xPosition :
+    LayerBulkPointDefectCase → Option CheckLayerJunctionPosition
+  | .firstXFirstZNontrivialY => some .first
+  | .lastXLastZNontrivialY => some .last
+  | .middleXMiddleZTrivialBelowNontrivialAbove => some .middle
+  | .middleXMiddleZNontrivialBelowTrivialAbove => some .middle
+  | .middleXFirstZNontrivialYAbove => some .middle
+  | .middleXLastZNontrivialYBelow => some .middle
+  | .firstXMiddleZNontrivialYAbove => some .first
+  | .lastXMiddleZNontrivialYBelow => some .last
+  | .trivialXMiddleZNontrivialYThrough => none
+  | .middleXTrivialZNontrivialYThrough => some .middle
+
+/-- Z-incidence position at a bulk point; `none` marks a trivial Z crossing. -/
+def LayerBulkPointDefectCase.zPosition :
+    LayerBulkPointDefectCase → Option CheckLayerJunctionPosition
+  | .firstXFirstZNontrivialY => some .first
+  | .lastXLastZNontrivialY => some .last
+  | .middleXMiddleZTrivialBelowNontrivialAbove => some .middle
+  | .middleXMiddleZNontrivialBelowTrivialAbove => some .middle
+  | .middleXFirstZNontrivialYAbove => some .first
+  | .middleXLastZNontrivialYBelow => some .last
+  | .firstXMiddleZNontrivialYAbove => some .middle
+  | .lastXMiddleZNontrivialYBelow => some .middle
+  | .trivialXMiddleZNontrivialYThrough => some .middle
+  | .middleXTrivialZNontrivialYThrough => none
+
+/-- Y-junction arrangement at each bulk point, preserving above/below orientation. -/
+def LayerBulkPointDefectCase.yPattern :
+    LayerBulkPointDefectCase → LayerBulkPointDefectYPattern
+  | .firstXFirstZNontrivialY => .nontrivial
+  | .lastXLastZNontrivialY => .nontrivial
+  | .middleXMiddleZTrivialBelowNontrivialAbove => .trivialBelowNontrivialAbove
+  | .middleXMiddleZNontrivialBelowTrivialAbove => .nontrivialBelowTrivialAbove
+  | .middleXFirstZNontrivialYAbove => .nontrivialAbove
+  | .middleXLastZNontrivialYBelow => .nontrivialBelow
+  | .firstXMiddleZNontrivialYAbove => .nontrivialAbove
+  | .lastXMiddleZNontrivialYBelow => .nontrivialBelow
+  | .trivialXMiddleZNontrivialYThrough => .nontrivialThrough
+  | .middleXTrivialZNontrivialYThrough => .nontrivialThrough
+
 instance : Fintype LayerBulkPointDefectCase where
   elems := {
     .firstXFirstZNontrivialY,
