@@ -1850,6 +1850,16 @@ instance : Fintype LayerBulkPointDefectCase where
     intro x
     cases x <;> simp
 
+/-- The bulk taxonomy has one trivial crossing in each x/z orientation and two through-y cases. -/
+theorem layerBulkPointDefectGeometry_counts :
+    (Finset.univ.filter (fun c : LayerBulkPointDefectCase =>
+      LayerBulkPointDefectCase.xPosition c = none)).card = 1 ∧
+    (Finset.univ.filter (fun c : LayerBulkPointDefectCase =>
+      LayerBulkPointDefectCase.zPosition c = none)).card = 1 ∧
+    (Finset.univ.filter (fun c : LayerBulkPointDefectCase =>
+      LayerBulkPointDefectCase.yPattern c = .nontrivialThrough)).card = 2 := by
+  decide
+
 /-- The twelve boundary point-defect configurations enumerated in the paper. -/
 inductive LayerBoundaryPointDefectCase
   | firstZFrontYZ
