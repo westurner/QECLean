@@ -138,6 +138,13 @@ input CSS code.
   yz candidate absence before actual first Z junctions, from actual last Z
   junctions onward, and for all singleton Z rows. No general endpoint CSS,
   physical-qubit truncation, or singleton defect replacement is claimed.
+- Prove all five z-star legs stay fixed away from real X owners, for arbitrary
+  owners and both orientations; reuse this in the original prefix fixture.
+  Kernel-check both reflected last-endpoint overlaps in the two-data-layer
+  fixture: inward overlap two, outward overlap one. Derive physical
+  commutation exactly inward and prove reflected outward suppression and
+  inward retention. These are finite local tests, not general endpoint CSS
+  or constructed input/output examples.
 - Prove a general physical-support insertion redundancy law when two owned
   edges have the same canonical image. Test an inward yz face augmented by
   its coincident data-owned z edge: its owned support has cardinality five,

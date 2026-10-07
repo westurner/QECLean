@@ -115,6 +115,9 @@ Implemented in `Layer.lean`:
   Candidate absence is proved equivalent to those states; every emitted
   candidate has weight five and X type. This is not a total replacement rule:
   termination, compatible Z checks, and point/boundary replacements remain open.
+  Away from real X owners, every leg is a canonical fixed point for arbitrary
+  data/Z owners and both forward and reflected orientations. The original
+  prefix-star fixture now reuses that general law.
 - `LayerGridFaceCell` and `layerGridFaceEdge` migrate ordinary planar faces
   in all three orientations to real owners on the spaced carrier. Their
   ambient image recovers `layerFaceEdge`, and their spatially distinct legs
@@ -130,11 +133,13 @@ Implemented in `Layer.lean`:
   closed overlap computations using kernel `decide`, without `native_decide`
   or an elaboration option. Exact owner-lookup absence and a prefix-star
   fixed-point law support explicit per-leg normalization.
-- For the two-data-layer, one-X/one-Z spaced fixture, the forward five-leg
-  z star has one shared canonical edge with the outward ordinary yz face
-  and two with the inward face. The corresponding physical Paulis do not
-  commute outward and do commute inward. These are conditional finite local
-  tests, not constructed input/output code examples or general endpoint laws.
+- For the two-data-layer, one-X/one-Z spaced fixture, both the forward first
+  and reflected last five-leg z stars have one shared canonical edge with
+  their outward ordinary yz face and two with their inward face. The physical
+  Paulis commute exactly inward; the span gate suppresses the reflected
+  outward face and retains the inward face when both endpoints are active.
+  These are conditional finite local tests, not constructed input/output
+  code examples or general endpoint laws.
 - `gridCheckCellWithinSpan` and `gridFaceWithinCheckSpan` describe ordinary
   xy/yz face candidates between active data-layer coordinates. Cells before
   or after the support and in prefix padding are excluded. Singleton support
@@ -310,11 +315,11 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   point intersections. `single` remains an explicit unresolved state, not a
   first-incidence alias. Establish termination and compatible Z checks before
   treating it as a replacement template. Both adjacent yz faces are now
-  verified in the finite forward-star fixture: the outward face has odd
-  normalized overlap and is suppressed by the span gate; the retained inward
-  face has overlap two and commutes. Generalize this to arbitrary endpoints
-  and reflected last incidences. The middle-junction diagram includes a
-  distinct modified Z support: establish its coupling-qubit identities before
+  verified in finite forward-first and reflected-last fixtures: the outward
+  face has odd normalized overlap and is suppressed by the span gate; the retained inward
+  face has overlap two and commutes. Generalize the overlap and commutation
+  laws to arbitrary endpoint coordinates. The middle-junction diagram includes
+  a distinct modified Z support: establish its coupling-qubit identities before
   deciding which coincident copies the canonical map may merge. The checked
   five-owned-edge augmented-face candidate collapses to the ordinary physical
   face, so it cannot supply a distinct replacement on the current carrier.

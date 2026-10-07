@@ -2903,6 +2903,20 @@ lemma LayerGridLayout.zLineFiveLegEdge_position_injective (layout : LayerGridLay
       (layout.ambientEdge (layout.zLineFiveLegEdge qubit check zCell isLast second)) at heq
   simpa only [layout.zLineFiveLegEdge_ambient] using heq
 
+lemma CSSLayerInput.gridZLineFiveLegEdge_fixed_of_no_x_owner {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX - 1))
+    (isLast : Bool) (leg : Fin 5)
+    (hoff : layout.indexAtVertex (interiorSuccVertex zCell) = none) :
+    input.canonGridDefectEdge layout (layout.zLineFiveLegEdge qubit check zCell isLast leg) =
+      layout.zLineFiveLegEdge qubit check zCell isLast leg := by
+  fin_cases leg
+  · rfl
+  · rfl
+  · rfl
+  · rfl
+  · simp [LayerGridLayout.zLineFiveLegEdge, canonGridDefectEdge, hoff]
+
 noncomputable def CSSLayerInput.gridZLineFiveLegXStar {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
     (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX - 1))
@@ -3299,19 +3313,8 @@ lemma grid_zLine_prefix_star_fixed {k : ℕ} (input : CSSLayerInput 2 k 1 1) (le
     input.canonGridDefectEdge layout
         (layout.zLineFiveLegEdge (nX := 1) (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false leg) =
       layout.zLineFiveLegEdge (nX := 1) (0 : Fin 2) (0 : Fin 1) (0 : Fin 7) false leg := by
-  fin_cases leg
-  · rfl
-  · rfl
-  · rfl
-  · rfl
-  · let layout : LayerGridLayout := ⟨4, le_rfl⟩
-    have hz1 : layout.indexAtVertex (count := 1) (1 : Fin 9) = none :=
-      layout.indexAtVertex_lt_spacing _ (by decide)
-    change input.canonGridDefectEdge layout
-      (Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (1 : Fin 9))))) =
-        Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((4 : Fin 12), (1 : Fin 9))))
-    simp only [CSSLayerInput.canonGridDefectEdge, hz1]
-    rfl
+  apply input.gridZLineFiveLegEdge_fixed_of_no_x_owner
+  exact LayerGridLayout.indexAtVertex_lt_spacing _ _ (by decide)
 
 lemma grid_zLine_opposite_face_odd_overlap {k : ℕ}
     (input : CSSLayerInput 2 k 1 1) (hactive : input.zCheck 0 0 = 1) :
@@ -3455,6 +3458,104 @@ lemma gridSpanZPlaquetteCandidate_inward_face {k : ℕ}
     let layout : LayerGridLayout := ⟨4, le_rfl⟩
     input.gridSpanZPlaquetteCandidate layout (.yz 0 (4 : Fin 12) (1 : Fin 8)) =
       some (input.gridLocalZPlaquette layout (.yz 0 (4 : Fin 12) (1 : Fin 8)) Finset.univ) := by
+  apply (input.gridSpanZPlaquetteCandidate_eq_some_iff _ _ _).mpr
+  refine ⟨?_, rfl⟩
+  exact ⟨(0 : Fin 2), (1 : Fin 2), hfirst, hlast, by decide, by decide⟩
+
+lemma grid_zLine_last_adjacent_face_overlap {k : ℕ}
+    (input : CSSLayerInput 2 k 1 1) (hactive : input.zCheck 0 1 = 1)
+    (isOutward : Bool) :
+    (by
+      let layout : LayerGridLayout := ⟨4, le_rfl⟩
+      exact ((Finset.univ : Finset (Fin 5)).image (fun leg =>
+        input.canonGridDefectEdge layout
+          (layout.zLineFiveLegEdge (nX := 1) (1 : Fin 2) (0 : Fin 1) (0 : Fin 7) true leg)) ∩
+        (Finset.univ : Finset (Fin 4)).image (fun leg =>
+          input.canonGridDefectEdge layout (layerGridFaceEdge
+            (LayerGridFaceCell.yz (n := 2) (nX := 1) (nZ := 1)
+              (0 : Fin 1) (if isOutward then (8 : Fin 12) else (7 : Fin 12))
+              (1 : Fin 8)) leg))).card =
+        if isOutward then 1 else 2) := by
+  let layout : LayerGridLayout := ⟨4, le_rfl⟩
+  let star := layout.zLineFiveLegEdge (nX := 1) (1 : Fin 2) (0 : Fin 1) (0 : Fin 7) true
+  let face : LayerGridFaceCell layout 2 1 1 :=
+    .yz 0 (if isOutward then (8 : Fin 12) else (7 : Fin 12)) (1 : Fin 8)
+  let normalizedFace : Fin 4 → LayerGridSurfaceEdge layout 2 1 1 := fun leg =>
+    match leg.val with
+    | 0 => Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl
+        ((if isOutward then (8 : Fin 12) else (7 : Fin 12)), (1 : Fin 9))))
+    | 1 => if isOutward
+        then Sum.inr (Sum.inr ((0 : Fin 1), Sum.inr ((9 : Fin 13), (1 : Fin 8))))
+        else Sum.inl ((1 : Fin 2), Sum.inr ((4 : Fin 9), (1 : Fin 8)))
+    | 2 => Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl
+        ((if isOutward then (8 : Fin 12) else (7 : Fin 12)), (2 : Fin 9))))
+    | _ => if isOutward
+        then Sum.inl ((1 : Fin 2), Sum.inr ((4 : Fin 9), (1 : Fin 8)))
+        else Sum.inr (Sum.inr ((0 : Fin 1), Sum.inr ((7 : Fin 13), (1 : Fin 8))))
+  have hz1 : layout.indexAtVertex (count := 1) (1 : Fin 9) = none :=
+    layout.indexAtVertex_lt_spacing _ (by decide)
+  have hz2 : layout.indexAtVertex (count := 1) (2 : Fin 9) = none :=
+    layout.indexAtVertex_lt_spacing _ (by decide)
+  have hy7 : layout.indexAtVertex (count := 2) (7 : Fin 13) = none := by
+    apply (layout.indexAtVertex_eq_none_iff _).mpr
+    intro qubit heq
+    have hvalue := congrArg Fin.val heq
+    fin_cases qubit <;>
+      norm_num [LayerGridLayout.layerCoordinate, LayerGridLayout.extent, layout] at hvalue
+  have hy8 : layout.indexAtVertex (count := 2) (8 : Fin 13) = some (1 : Fin 2) :=
+    layout.indexAtVertex_layerCoordinate (1 : Fin 2)
+  have hy9 : layout.indexAtVertex (count := 2) (9 : Fin 13) = none :=
+    layout.indexAtVertex_layerCoordinate_succ_eq_none (1 : Fin 2)
+  have hstar (leg : Fin 5) : input.canonGridDefectEdge layout (star leg) = star leg :=
+    input.gridZLineFiveLegEdge_fixed_of_no_x_owner layout _ _ _ _ leg hz1
+  have hface (leg : Fin 4) : input.canonGridDefectEdge layout (layerGridFaceEdge face leg) =
+      normalizedFace leg := by
+    fin_cases leg <;> cases isOutward <;>
+      simp [face, normalizedFace, layerGridFaceEdge, CSSLayerInput.canonGridDefectEdge,
+        hz1, hz2, hy7, hy8, hy9, hactive]
+    all_goals rfl
+  change ((Finset.univ : Finset (Fin 5)).image (fun leg =>
+    input.canonGridDefectEdge layout (star leg)) ∩
+      (Finset.univ : Finset (Fin 4)).image (fun leg =>
+        input.canonGridDefectEdge layout (layerGridFaceEdge face leg))).card =
+      if isOutward then 1 else 2
+  simp only [hstar, hface]
+  cases isOutward <;> decide
+
+lemma grid_zLine_last_adjacent_face_commute_iff {k : ℕ}
+    (input : CSSLayerInput 2 k 1 1) (hactive : input.zCheck 0 1 = 1)
+    (isOutward : Bool) :
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    (input.gridZLineFiveLegXStar layout (1 : Fin 2) (0 : Fin 1) (0 : Fin 7) true *
+        input.gridLocalZPlaquette layout
+          (.yz 0 (if isOutward then (8 : Fin 12) else (7 : Fin 12)) (1 : Fin 8)) Finset.univ =
+      input.gridLocalZPlaquette layout
+          (.yz 0 (if isOutward then (8 : Fin 12) else (7 : Fin 12)) (1 : Fin 8)) Finset.univ *
+        input.gridZLineFiveLegXStar layout (1 : Fin 2) (0 : Fin 1) (0 : Fin 7) true) ↔
+      isOutward = false := by
+  dsimp only
+  change (input.gridXPauli _ _ * input.gridZPauli _ _ =
+    input.gridZPauli _ _ * input.gridXPauli _ _) ↔ _
+  rw [input.gridPaulis_commute_iff, input.gridPhysicalOverlap_card]
+  simp only [Finset.image_image, Function.comp_def]
+  with_unfolding_all rw [grid_zLine_last_adjacent_face_overlap input hactive isOutward]
+  cases isOutward <;> decide
+
+lemma gridSpanZPlaquetteCandidate_last_outward_face {k : ℕ}
+    (input : CSSLayerInput 2 k 1 1) :
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    input.gridSpanZPlaquetteCandidate layout (.yz 0 (8 : Fin 12) (1 : Fin 8)) = none := by
+  apply (input.gridSpanZPlaquetteCandidate_none_iff _ _).mpr
+  apply gridCheckCellWithinSpan_not_above
+  intro qubit hactive
+  fin_cases qubit <;> decide
+
+lemma gridSpanZPlaquetteCandidate_last_inward_face {k : ℕ}
+    (input : CSSLayerInput 2 k 1 1) (hfirst : input.zCheck 0 0 = 1)
+    (hlast : input.zCheck 0 1 = 1) :
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    input.gridSpanZPlaquetteCandidate layout (.yz 0 (7 : Fin 12) (1 : Fin 8)) =
+      some (input.gridLocalZPlaquette layout (.yz 0 (7 : Fin 12) (1 : Fin 8)) Finset.univ) := by
   apply (input.gridSpanZPlaquetteCandidate_eq_some_iff _ _ _).mpr
   refine ⟨?_, rfl⟩
   exact ⟨(0 : Fin 2), (1 : Fin 2), hfirst, hlast, by decide, by decide⟩
