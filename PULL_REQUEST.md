@@ -132,6 +132,12 @@ input CSS code.
   qubits or define middle coupling, boundary/point replacements, or global CSS.
   The roadmap now requires coupling-qubit identity validation at middle
   junctions before promoting any gluing convention to the final constructor.
+- Characterize ordinary check-sheet spans by active extrema and finite-support
+  minimum/maximum. Prove the existing rank classifier's first/last/single
+  labels imply least/greatest/unique owner semantics. Derive general ordinary
+  yz candidate absence before actual first Z junctions, from actual last Z
+  junctions onward, and for all singleton Z rows. No general endpoint CSS,
+  physical-qubit truncation, or singleton defect replacement is claimed.
 - Prove a general physical-support insertion redundancy law when two owned
   edges have the same canonical image. Test an inward yz face augmented by
   its coincident data-owned z edge: its owned support has cardinality five,

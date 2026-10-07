@@ -3023,6 +3023,44 @@ def gridCheckCellWithinSpan {n : ℕ} (layout : LayerGridLayout)
     (layout.layerCoordinate lower).val ≤ yCell.val ∧
       yCell.val < (layout.layerCoordinate upper).val
 
+lemma gridCheckCellWithinSpan_iff_endpoints {n : ℕ} (layout : LayerGridLayout)
+    (row : Fin n → ZMod 2) (first last : Fin n)
+    (hfirst : row first = 1) (hlast : row last = 1)
+    (hbounds : ∀ qubit, row qubit = 1 → first.val ≤ qubit.val ∧ qubit.val ≤ last.val)
+    (yCell : Fin (layout.extent n)) :
+    gridCheckCellWithinSpan layout row yCell ↔
+      (layout.layerCoordinate first).val ≤ yCell.val ∧
+        yCell.val < (layout.layerCoordinate last).val := by
+  constructor
+  · rintro ⟨lower, upper, hlower, hupper, hstart, hend⟩
+    have hlowerIndex := (hbounds lower hlower).1
+    have hupperIndex := (hbounds upper hupper).2
+    have hlowerCoordinate := Nat.mul_le_mul_left layout.spacing
+      (Nat.add_le_add_right hlowerIndex 1)
+    have hupperCoordinate := Nat.mul_le_mul_left layout.spacing
+      (Nat.add_le_add_right hupperIndex 1)
+    change layout.spacing * (first.val + 1) ≤ yCell.val ∧
+      yCell.val < layout.spacing * (last.val + 1)
+    change layout.spacing * (lower.val + 1) ≤ yCell.val at hstart
+    change yCell.val < layout.spacing * (upper.val + 1) at hend
+    exact ⟨hlowerCoordinate.trans hstart, hend.trans_le hupperCoordinate⟩
+  · rintro ⟨hstart, hend⟩
+    exact ⟨first, last, hfirst, hlast, hstart, hend⟩
+
+lemma gridCheckCellWithinSpan_iff_min_max {n : ℕ} (layout : LayerGridLayout)
+    (row : Fin n → ZMod 2) (support : Finset (Fin n))
+    (hsupport : ∀ qubit, qubit ∈ support ↔ row qubit = 1)
+    (hnonempty : support.Nonempty) (yCell : Fin (layout.extent n)) :
+    gridCheckCellWithinSpan layout row yCell ↔
+      (layout.layerCoordinate (support.min' hnonempty)).val ≤ yCell.val ∧
+        yCell.val < (layout.layerCoordinate (support.max' hnonempty)).val := by
+  apply gridCheckCellWithinSpan_iff_endpoints
+  · exact (hsupport _).mp (Finset.min'_mem _ _)
+  · exact (hsupport _).mp (Finset.max'_mem _ _)
+  · intro qubit hactive
+    have hmem := (hsupport qubit).mpr hactive
+    exact ⟨Finset.min'_le _ _ hmem, Finset.le_max' _ _ hmem⟩
+
 def CSSLayerInput.gridFaceWithinCheckSpan {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
     LayerGridFaceCell layout n nX nZ → Prop
@@ -3779,6 +3817,58 @@ noncomputable def Finset.orderedSupportPosition {α : Type*} [LinearOrder α]
     else if hlast : rank.val + 1 = support.card then .last
     else .middle
 
+lemma Finset.orderedSupportPosition_first_le {α : Type*} [LinearOrder α]
+    (support : Finset α) (qubit : {qubit // qubit ∈ support})
+  (hposition : Finset.orderedSupportPosition support qubit = .first)
+    (other : α) (hother : other ∈ support) : qubit.val ≤ other := by
+  let order := support.orderIsoOfFin rfl
+  have hfirst : (order.symm qubit).val = 0 := by
+    change (if support.card = 1 then CheckLayerJunctionPosition.single
+      else if (order.symm qubit).val = 0 then CheckLayerJunctionPosition.first
+      else if (order.symm qubit).val + 1 = support.card then CheckLayerJunctionPosition.last
+      else CheckLayerJunctionPosition.middle) = .first at hposition
+    split_ifs at hposition
+    simp_all
+  have hrank : order.symm qubit ≤ order.symm ⟨other, hother⟩ := by
+    change (order.symm qubit).val ≤ (order.symm ⟨other, hother⟩).val
+    omega
+  exact order.symm.le_iff_le.mp hrank
+
+lemma Finset.orderedSupportPosition_le_last {α : Type*} [LinearOrder α]
+    (support : Finset α) (qubit : {qubit // qubit ∈ support})
+  (hposition : Finset.orderedSupportPosition support qubit = .last)
+    (other : α) (hother : other ∈ support) : other ≤ qubit.val := by
+  let order := support.orderIsoOfFin rfl
+  have hlast : (order.symm qubit).val + 1 = support.card := by
+    change (if support.card = 1 then CheckLayerJunctionPosition.single
+      else if (order.symm qubit).val = 0 then CheckLayerJunctionPosition.first
+      else if (order.symm qubit).val + 1 = support.card then CheckLayerJunctionPosition.last
+      else CheckLayerJunctionPosition.middle) = .last at hposition
+    split_ifs at hposition
+    simp_all
+  have hrank : order.symm ⟨other, hother⟩ ≤ order.symm qubit := by
+    have hbound := (order.symm ⟨other, hother⟩).isLt
+    change (order.symm ⟨other, hother⟩).val ≤ (order.symm qubit).val
+    omega
+  exact order.symm.le_iff_le.mp hrank
+
+lemma Finset.orderedSupportPosition_single_unique {α : Type*} [LinearOrder α]
+    (support : Finset α) (qubit : {qubit // qubit ∈ support})
+    (hposition : Finset.orderedSupportPosition support qubit = .single)
+    (other : α) (hother : other ∈ support) : other = qubit.val := by
+  let order := support.orderIsoOfFin rfl
+  have hsingle : support.card = 1 := by
+    change (if support.card = 1 then CheckLayerJunctionPosition.single
+      else if (order.symm qubit).val = 0 then CheckLayerJunctionPosition.first
+      else if (order.symm qubit).val + 1 = support.card then CheckLayerJunctionPosition.last
+      else CheckLayerJunctionPosition.middle) = .single at hposition
+    split_ifs at hposition
+    assumption
+  obtain ⟨sole, hsole⟩ := Finset.card_eq_one.mp hsingle
+  have hqubit : qubit.val = sole := Finset.mem_singleton.mp (hsole ▸ qubit.property)
+  have hotherEq : other = sole := Finset.mem_singleton.mp (hsole ▸ hother)
+  exact hotherEq.trans hqubit.symm
+
 /-- Position of an X-check/data-layer junction in the X-check's ordered support. -/
 noncomputable def CSSLayerInput.xJunctionPosition {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (junction : XJunction input) :
@@ -3794,6 +3884,71 @@ noncomputable def CSSLayerInput.zJunctionPosition {n k nX nZ : ℕ}
   let support := Finset.univ.filter (fun q : Fin n => input.zCheck junction.1.1 q = 1)
   have hmem : junction.1.2 ∈ support := Finset.mem_filter.mpr ⟨Finset.mem_univ _, junction.2⟩
   exact Finset.orderedSupportPosition support ⟨junction.1.2, hmem⟩
+
+lemma CSSLayerInput.zJunctionPosition_first_le {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input)
+    (hposition : input.zJunctionPosition junction = .first)
+    (qubit : Fin n) (hactive : input.zCheck junction.1.1 qubit = 1) :
+    junction.1.2.val ≤ qubit.val := by
+  let support := Finset.univ.filter (fun qubit : Fin n => input.zCheck junction.1.1 qubit = 1)
+  have hjunction : junction.1.2 ∈ support :=
+    Finset.mem_filter.mpr ⟨Finset.mem_univ _, junction.2⟩
+  have hqubit : qubit ∈ support := Finset.mem_filter.mpr ⟨Finset.mem_univ _, hactive⟩
+  exact Finset.orderedSupportPosition_first_le support ⟨junction.1.2, hjunction⟩
+    hposition qubit hqubit
+
+lemma CSSLayerInput.zJunctionPosition_le_last {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (junction : ZJunction input)
+    (hposition : input.zJunctionPosition junction = .last)
+    (qubit : Fin n) (hactive : input.zCheck junction.1.1 qubit = 1) :
+    qubit.val ≤ junction.1.2.val := by
+  let support := Finset.univ.filter (fun qubit : Fin n => input.zCheck junction.1.1 qubit = 1)
+  have hjunction : junction.1.2 ∈ support :=
+    Finset.mem_filter.mpr ⟨Finset.mem_univ _, junction.2⟩
+  have hqubit : qubit ∈ support := Finset.mem_filter.mpr ⟨Finset.mem_univ _, hactive⟩
+  exact Finset.orderedSupportPosition_le_last support ⟨junction.1.2, hjunction⟩
+    hposition qubit hqubit
+
+lemma CSSLayerInput.gridSpanZPlaquetteCandidate_before_first_z {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (hposition : input.zJunctionPosition junction = .first)
+    (yCell : Fin (layout.extent n)) (zCell : Fin (layout.extent nX))
+    (hbefore : yCell.val < (layout.layerCoordinate junction.1.2).val) :
+    input.gridSpanZPlaquetteCandidate layout (.yz junction.1.1 yCell zCell) = none := by
+  apply (input.gridSpanZPlaquetteCandidate_none_iff _ _).mpr
+  apply gridCheckCellWithinSpan_not_below
+  intro qubit hactive
+  have hindex := input.zJunctionPosition_first_le junction hposition qubit hactive
+  have hcoordinate := Nat.mul_le_mul_left layout.spacing (Nat.add_le_add_right hindex 1)
+  exact hbefore.trans_le hcoordinate
+
+lemma CSSLayerInput.gridSpanZPlaquetteCandidate_from_last_z {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (hposition : input.zJunctionPosition junction = .last)
+    (yCell : Fin (layout.extent n)) (zCell : Fin (layout.extent nX))
+    (hafter : (layout.layerCoordinate junction.1.2).val ≤ yCell.val) :
+    input.gridSpanZPlaquetteCandidate layout (.yz junction.1.1 yCell zCell) = none := by
+  apply (input.gridSpanZPlaquetteCandidate_none_iff _ _).mpr
+  apply gridCheckCellWithinSpan_not_above
+  intro qubit hactive
+  have hindex := input.zJunctionPosition_le_last junction hposition qubit hactive
+  have hcoordinate := Nat.mul_le_mul_left layout.spacing (Nat.add_le_add_right hindex 1)
+  exact hcoordinate.trans hafter
+
+lemma CSSLayerInput.gridSpanZPlaquetteCandidate_single_z {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (junction : ZJunction input) (hposition : input.zJunctionPosition junction = .single)
+    (yCell : Fin (layout.extent n)) (zCell : Fin (layout.extent nX)) :
+    input.gridSpanZPlaquetteCandidate layout (.yz junction.1.1 yCell zCell) = none := by
+  apply (input.gridSpanZPlaquetteCandidate_none_iff _ _).mpr
+  apply gridCheckCellWithinSpan_single layout _ junction.1.2
+  intro qubit hactive
+  let support := Finset.univ.filter (fun qubit : Fin n => input.zCheck junction.1.1 qubit = 1)
+  have hjunction : junction.1.2 ∈ support :=
+    Finset.mem_filter.mpr ⟨Finset.mem_univ _, junction.2⟩
+  have hqubit : qubit ∈ support := Finset.mem_filter.mpr ⟨Finset.mem_univ _, hactive⟩
+  exact Finset.orderedSupportPosition_single_unique support ⟨junction.1.2, hjunction⟩
+    hposition qubit hqubit
 
 inductive GridZLineStarResolution
   | pointIntersection

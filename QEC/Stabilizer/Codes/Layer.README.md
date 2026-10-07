@@ -144,6 +144,14 @@ Implemented in `Layer.lean`:
   face and retains the commuting inward face when both endpoints are active.
   The gate does not truncate the physical-qubit carrier, repair middle
   coupling checks, or provide a total replacement assembly.
+- Ordinary check-sheet spans are now exactly the half-open interval between
+  active extrema, including extrema computed from a finite row support.
+  The existing rank classifier's first/last/single labels imply least-owner,
+  greatest-owner, and unique-owner laws. For actual Z junctions, ordinary yz
+  candidates are absent before the first layer, from the last layer onward,
+  and everywhere for singleton support. These hold for arbitrary owner counts
+  and layouts, not just the finite fixture. They are candidate-gating laws,
+  not general star/face CSS or singleton defect replacements.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -282,6 +290,8 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   An incidence-derived span gate now excludes ordinary faces outside check
   support endpoints, with explicit singleton and prefix-padding laws. Its
   finite endpoint fixture verifies outward suppression and inward retention.
+  Exact interval characterization and first/last/single rank semantics now
+  derive general Z-junction outward-face suppression from the actual row.
   Integrate actual check-sheet/qubit truncation and defect-specific boundary
   and coupling plaquette supports. Specify the
   actual terminated direction for first/last incidences from the diagrams;
