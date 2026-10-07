@@ -157,6 +157,13 @@ Implemented in `Layer.lean`:
   and everywhere for singleton support. These hold for arbitrary owner counts
   and layouts, not just the finite fixture. They are candidate-gating laws,
   not general star/face CSS or singleton defect replacements.
+- `grid_zLine_middle_candidates_not_commuting` checks a three-data-layer,
+  one-X/one-Z fixture with all three Z incidences active. The rank classifier
+  assigns the interior owner `.middle`, its forward star is emitted, and the
+  ordinary opposite yz face is retained by the span gate. Their normalized
+  overlap has cardinality one, so the physical Paulis do not commute. This
+  is a conditional candidate-level regression, not a constructed code example.
+  Endpoint gating alone therefore cannot repair the middle case.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
@@ -214,6 +221,11 @@ Still incomplete:
 
 - `LayerCode.outputCode` is still an input certificate; the CSS input does not
   yet produce the output code.
+- The spaced star and span-gated ordinary-face candidates also fail CSS at a
+  verified middle incidence: both constructors emit the noncommuting pair in
+  `grid_zLine_middle_candidates_not_commuting`. A validated middle replacement
+  and obsolete-face suppression are required; the current candidates cannot
+  be appended unchanged to form a stabilizer code.
 - The unmodified shared-edge surface lists provably fail cross-commutation:
   `unmodified_surface_candidates_not_cross_commuting` exhibits an xy star and
   yz plaquette with one common edge in a `n = 2, nX = 1, nZ = 2` cuboid.
@@ -323,6 +335,9 @@ Factory environment. Before starting, check `command -v lean lake rg` and
   deciding which coincident copies the canonical map may merge. The checked
   five-owned-edge augmented-face candidate collapses to the ordinary physical
   face, so it cannot supply a distinct replacement on the current carrier.
+  The three-owner middle regression now proves both current candidate
+  constructors emit a noncommuting pair inside the span. Validate a replacement
+  and its obsolete-face suppression before attempting global CSS assembly.
   A span gate alone is not a middle-junction repair. Do not fabricate a CSS
   input whose
   generator counts equal the larger grid dimensions.

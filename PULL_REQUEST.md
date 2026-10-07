@@ -145,6 +145,13 @@ input CSS code.
   commutation exactly inward and prove reflected outward suppression and
   inward retention. These are finite local tests, not general endpoint CSS
   or constructed input/output examples.
+- Verify the remaining middle obstruction on three actual data owners: all
+  three active Z incidences give a genuine middle rank, the current star
+  dispatcher emits its forward candidate, and the span gate retains the
+  opposite ordinary yz face. Kernel-check normalized overlap one and derive
+  physical noncommutation. The regression links both candidate constructors,
+  so endpoint gating does not justify global CSS assembly. A paper-valid
+  middle replacement and obsolete-face suppression remain required.
 - Prove a general physical-support insertion redundancy law when two owned
   edges have the same canonical image. Test an inward yz face augmented by
   its coincident data-owned z edge: its owned support has cardinality five,

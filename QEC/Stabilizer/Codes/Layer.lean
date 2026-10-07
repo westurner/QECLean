@@ -3560,6 +3560,77 @@ lemma gridSpanZPlaquetteCandidate_last_inward_face {k : ℕ}
   refine ⟨?_, rfl⟩
   exact ⟨(0 : Fin 2), (1 : Fin 2), hfirst, hlast, by decide, by decide⟩
 
+lemma grid_zLine_middle_opposite_face_overlap {k : ℕ}
+    (input : CSSLayerInput 3 k 1 1) (hactive : input.zCheck 0 1 = 1) :
+    (by
+      let layout : LayerGridLayout := ⟨4, le_rfl⟩
+      exact ((Finset.univ : Finset (Fin 5)).image (fun leg =>
+        input.canonGridDefectEdge layout
+          (layout.zLineFiveLegEdge (nX := 1) (1 : Fin 3) (0 : Fin 1) (0 : Fin 7) false leg)) ∩
+        (Finset.univ : Finset (Fin 4)).image (fun leg =>
+          input.canonGridDefectEdge layout (layerGridFaceEdge
+            (LayerGridFaceCell.yz (n := 3) (nX := 1) (nZ := 1)
+              (0 : Fin 1) (7 : Fin 16) (1 : Fin 8)) leg))).card = 1) := by
+  let layout : LayerGridLayout := ⟨4, le_rfl⟩
+  let star := layout.zLineFiveLegEdge (nX := 1) (1 : Fin 3) (0 : Fin 1) (0 : Fin 7) false
+  let face : LayerGridFaceCell layout 3 1 1 := .yz 0 (7 : Fin 16) (1 : Fin 8)
+  let normalizedFace : Fin 4 → LayerGridSurfaceEdge layout 3 1 1 := fun leg =>
+    match leg.val with
+    | 0 => Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((7 : Fin 16), (1 : Fin 9))))
+    | 1 => Sum.inl ((1 : Fin 3), Sum.inr ((4 : Fin 9), (1 : Fin 8)))
+    | 2 => Sum.inr (Sum.inr ((0 : Fin 1), Sum.inl ((7 : Fin 16), (2 : Fin 9))))
+    | _ => Sum.inr (Sum.inr ((0 : Fin 1), Sum.inr ((7 : Fin 17), (1 : Fin 8))))
+  have hz1 : layout.indexAtVertex (count := 1) (1 : Fin 9) = none :=
+    layout.indexAtVertex_lt_spacing _ (by decide)
+  have hz2 : layout.indexAtVertex (count := 1) (2 : Fin 9) = none :=
+    layout.indexAtVertex_lt_spacing _ (by decide)
+  have hy7 : layout.indexAtVertex (count := 3) (7 : Fin 17) = none := by
+    apply (layout.indexAtVertex_eq_none_iff _).mpr
+    intro qubit heq
+    have hvalue := congrArg Fin.val heq
+    fin_cases qubit <;>
+      norm_num [LayerGridLayout.layerCoordinate, LayerGridLayout.extent, layout] at hvalue
+  have hy8 : layout.indexAtVertex (count := 3) (8 : Fin 17) = some (1 : Fin 3) :=
+    layout.indexAtVertex_layerCoordinate (1 : Fin 3)
+  have hstar (leg : Fin 5) : input.canonGridDefectEdge layout (star leg) = star leg :=
+    input.gridZLineFiveLegEdge_fixed_of_no_x_owner layout _ _ _ _ leg hz1
+  have hface (leg : Fin 4) : input.canonGridDefectEdge layout (layerGridFaceEdge face leg) =
+      normalizedFace leg := by
+    fin_cases leg <;>
+      simp [face, normalizedFace, layerGridFaceEdge, CSSLayerInput.canonGridDefectEdge,
+        hz1, hz2, hy7, hy8, hactive]
+    all_goals rfl
+  change ((Finset.univ : Finset (Fin 5)).image (fun leg =>
+    input.canonGridDefectEdge layout (star leg)) ∩
+      (Finset.univ : Finset (Fin 4)).image (fun leg =>
+        input.canonGridDefectEdge layout (layerGridFaceEdge face leg))).card = 1
+  simp only [hstar, hface]
+  decide
+
+lemma grid_zLine_middle_opposite_face_retained_noncommuting {k : ℕ}
+    (input : CSSLayerInput 3 k 1 1) (hfirst : input.zCheck 0 0 = 1)
+    (hactive : input.zCheck 0 1 = 1) :
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    input.gridSpanZPlaquetteCandidate layout (.yz 0 (7 : Fin 16) (1 : Fin 8)) =
+        some (input.gridLocalZPlaquette layout (.yz 0 (7 : Fin 16) (1 : Fin 8)) Finset.univ) ∧
+      input.gridZLineFiveLegXStar layout (1 : Fin 3) (0 : Fin 1) (0 : Fin 7) false *
+          input.gridLocalZPlaquette layout (.yz 0 (7 : Fin 16) (1 : Fin 8)) Finset.univ ≠
+        input.gridLocalZPlaquette layout (.yz 0 (7 : Fin 16) (1 : Fin 8)) Finset.univ *
+          input.gridZLineFiveLegXStar layout (1 : Fin 3) (0 : Fin 1) (0 : Fin 7) false := by
+  dsimp only
+  constructor
+  · apply (input.gridSpanZPlaquetteCandidate_eq_some_iff _ _ _).mpr
+    refine ⟨?_, rfl⟩
+    exact ⟨(0 : Fin 3), (1 : Fin 3), hfirst, hactive, by decide, by decide⟩
+  · intro hcommute
+    change input.gridXPauli _ _ * input.gridZPauli _ _ =
+      input.gridZPauli _ _ * input.gridXPauli _ _ at hcommute
+    have heven := (input.gridPaulis_commute_iff _ _ _).mp hcommute
+    rw [input.gridPhysicalOverlap_card] at heven
+    simp only [Finset.image_image, Function.comp_def] at heven
+    with_unfolding_all rw [grid_zLine_middle_opposite_face_overlap input hactive] at heven
+    exact (by decide : ¬ Even (1 : ℕ)) heven
+
 lemma CSSLayerInput.physicalFaceEdge_injective {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (plane : LayerFacePlane)
     (cell : LayerFaceCell n nX nZ) :
@@ -4051,6 +4122,30 @@ lemma CSSLayerInput.gridSpanZPlaquetteCandidate_single_z {n k nX nZ : ℕ}
   exact Finset.orderedSupportPosition_single_unique support ⟨junction.1.2, hjunction⟩
     hposition qubit hqubit
 
+lemma grid_zLine_three_active_owners_middle {k : ℕ}
+    (input : CSSLayerInput 3 k 1 1) (hfirst : input.zCheck 0 0 = 1)
+    (hactive : input.zCheck 0 1 = 1) (hlast : input.zCheck 0 2 = 1) :
+    input.zJunctionPosition ⟨((0 : Fin 1), (1 : Fin 3)), hactive⟩ = .middle := by
+  let junction : ZJunction input := ⟨((0 : Fin 1), (1 : Fin 3)), hactive⟩
+  change input.zJunctionPosition junction = .middle
+  cases hposition : input.zJunctionPosition junction with
+  | single =>
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    have hnone := input.gridSpanZPlaquetteCandidate_single_z layout junction hposition
+      (7 : Fin 16) (1 : Fin 8)
+    have hsome := (grid_zLine_middle_opposite_face_retained_noncommuting input hfirst hactive).1
+    change input.gridSpanZPlaquetteCandidate layout (.yz 0 (7 : Fin 16) (1 : Fin 8)) =
+      none at hnone
+    rw [hsome] at hnone
+    contradiction
+  | first =>
+    have hbound := input.zJunctionPosition_first_le junction hposition (0 : Fin 3) hfirst
+    norm_num [junction] at hbound
+  | last =>
+    have hbound := input.zJunctionPosition_le_last junction hposition (2 : Fin 3) hlast
+    norm_num [junction] at hbound
+  | middle => rfl
+
 inductive GridZLineStarResolution
   | pointIntersection
   | singleIncidence
@@ -4162,6 +4257,33 @@ lemma CSSLayerInput.gridZLineXStarCandidate_none_iff {n k nX nZ : ℕ}
         input.gridZLineStarResolution layout junction zCell = .singleIncidence := by
   cases hresolution : input.gridZLineStarResolution layout junction zCell <;>
     simp [gridZLineXStarCandidate, hresolution]
+
+lemma grid_zLine_middle_candidates_not_commuting {k : ℕ}
+    (input : CSSLayerInput 3 k 1 1) (hfirst : input.zCheck 0 0 = 1)
+    (hactive : input.zCheck 0 1 = 1) (hlast : input.zCheck 0 2 = 1) :
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    let junction : ZJunction input := ⟨((0 : Fin 1), (1 : Fin 3)), hactive⟩
+    input.gridZLineXStarCandidate layout junction (0 : Fin 7) =
+        some (input.gridZLineFiveLegXStar layout (1 : Fin 3) (0 : Fin 1) (0 : Fin 7) false) ∧
+      input.gridSpanZPlaquetteCandidate layout (.yz 0 (7 : Fin 16) (1 : Fin 8)) =
+        some (input.gridLocalZPlaquette layout (.yz 0 (7 : Fin 16) (1 : Fin 8)) Finset.univ) ∧
+      input.gridZLineFiveLegXStar layout (1 : Fin 3) (0 : Fin 1) (0 : Fin 7) false *
+          input.gridLocalZPlaquette layout (.yz 0 (7 : Fin 16) (1 : Fin 8)) Finset.univ ≠
+        input.gridLocalZPlaquette layout (.yz 0 (7 : Fin 16) (1 : Fin 8)) Finset.univ *
+          input.gridZLineFiveLegXStar layout (1 : Fin 3) (0 : Fin 1) (0 : Fin 7) false := by
+  dsimp only
+  constructor
+  · let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    change input.gridZLineXStarCandidate layout
+      ⟨((0 : Fin 1), (1 : Fin 3)), hactive⟩ (0 : Fin 7) =
+        some (input.gridZLineFiveLegXStar layout (1 : Fin 3) (0 : Fin 1) (0 : Fin 7) false)
+    have hoff : layout.indexAtVertex (count := 1)
+        (interiorSuccVertex (m := layout.extent 1) (0 : Fin 7)) = none :=
+      layout.indexAtVertex_lt_spacing _ (by decide)
+    have hposition := grid_zLine_three_active_owners_middle input hfirst hactive hlast
+    simp [CSSLayerInput.gridZLineXStarCandidate, CSSLayerInput.gridZLineStarResolution,
+      hoff, hposition]
+  · exact grid_zLine_middle_opposite_face_retained_noncommuting input hfirst hactive
 
 /-- X-star support at a Z-check incidence, with the y-edge chosen by position. -/
 noncomputable def CSSLayerInput.zJunctionXStarEdges {n k nX nZ : ℕ}
