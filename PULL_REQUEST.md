@@ -159,6 +159,16 @@ input CSS code.
   weight-four plaquette. This rules out that naive insertion as a distinct
   middle replacement on the current carrier; no paper-support correspondence
   or revised gluing convention is claimed.
+- Add a separately testable middle-z coupling normalization inspired by the
+  diagram's distinct black/red seam copies. Preserve the yz z-edge copy only
+  at active incidences with active owners strictly before and after them;
+  retain the old normalization elsewhere. Prove idempotence, preservation of
+  old fixed points, and a five-edge normalized inward replacement away from
+  X-owner intersections. Kernel-check inward overlap two and outward ordinary
+  face overlap zero in the same three-owner middle fixture. The old carrier
+  and candidate dispatchers remain unchanged for their obstruction regressions.
+  Migration to a replacement-aware physical carrier, validation against all
+  adjacent stars, point/boundary handling, and global CSS remain required.
 - Build separate same-type surface X/Z stabilizer groups that include those
   standard boundary candidates. Cross-sector commutation with line/point defect
   checks remains unproved because those checks are not yet encoded.

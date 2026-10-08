@@ -2400,6 +2400,39 @@ noncomputable def CSSLayerInput.canonGridDefectEdge {n k nX nZ : ℕ}
             else Sum.inr (Sum.inr (check, Sum.inr (yCoord, zCoord)))
         | none => Sum.inr (Sum.inr (check, Sum.inr (yCoord, zCoord)))
 
+def CSSLayerInput.gridZMiddleIncidence {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (check : Fin nZ) (qubit : Fin n) : Prop :=
+  input.zCheck check qubit = 1 ∧
+    (∃ earlier, input.zCheck check earlier = 1 ∧ earlier.val < qubit.val) ∧
+    (∃ later, input.zCheck check later = 1 ∧ qubit.val < later.val)
+
+def CSSLayerInput.gridZMiddleSeamEdge {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
+    LayerGridSurfaceEdge layout n nX nZ → Prop
+  | Sum.inr (Sum.inr (check, Sum.inr (yCoord, _))) =>
+      ∃ qubit, layout.indexAtVertex yCoord = some qubit ∧
+        input.gridZMiddleIncidence check qubit
+  | _ => False
+
+noncomputable def CSSLayerInput.canonGridZCouplingEdge {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (edge : LayerGridSurfaceEdge layout n nX nZ) : LayerGridSurfaceEdge layout n nX nZ := by
+  classical
+  exact if input.gridZMiddleSeamEdge layout edge then edge
+    else input.canonGridDefectEdge layout edge
+
+lemma CSSLayerInput.canonGridZCouplingEdge_middle {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (check : Fin nZ) (qubit : Fin n) (zCoord : Fin (layout.extent nX))
+    (hmiddle : input.gridZMiddleIncidence check qubit) :
+    input.canonGridZCouplingEdge layout
+        (Sum.inr (Sum.inr (check, Sum.inr
+          ((layout.layerCoordinate qubit).castSucc, zCoord)))) =
+      Sum.inr (Sum.inr (check, Sum.inr
+        ((layout.layerCoordinate qubit).castSucc, zCoord))) := by
+  simp [canonGridZCouplingEdge, gridZMiddleSeamEdge,
+    layout.indexAtVertex_layerCoordinate, hmiddle]
+
 lemma CSSLayerInput.canonGridDefectEdge_idempotent {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
     (edge : LayerGridSurfaceEdge layout n nX nZ) :
@@ -2421,6 +2454,27 @@ lemma CSSLayerInput.canonGridDefectEdge_idempotent {n k nX nZ : ℕ}
     cases hindex : layout.indexAtVertex yCoord <;>
       simp only [canonGridDefectEdge, hindex]
     split_ifs <;> simp_all
+
+lemma CSSLayerInput.canonGridZCouplingEdge_of_fixed {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (edge : LayerGridSurfaceEdge layout n nX nZ)
+    (hfixed : input.canonGridDefectEdge layout edge = edge) :
+    input.canonGridZCouplingEdge layout edge = edge := by
+  classical
+  simp [canonGridZCouplingEdge, hfixed]
+
+lemma CSSLayerInput.canonGridZCouplingEdge_idempotent {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (edge : LayerGridSurfaceEdge layout n nX nZ) :
+    input.canonGridZCouplingEdge layout (input.canonGridZCouplingEdge layout edge) =
+      input.canonGridZCouplingEdge layout edge := by
+  classical
+  by_cases hkeep : input.gridZMiddleSeamEdge layout edge
+  · simp [canonGridZCouplingEdge, hkeep]
+  · rw [show input.canonGridZCouplingEdge layout edge =
+        input.canonGridDefectEdge layout edge by simp [canonGridZCouplingEdge, hkeep]]
+    exact input.canonGridZCouplingEdge_of_fixed layout _
+      (input.canonGridDefectEdge_idempotent layout edge)
 
 lemma CSSLayerInput.canonGridDefectEdge_position {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
@@ -3225,6 +3279,49 @@ lemma gridZLineAugmentedFaceSupport_card {n nX nZ : ℕ} (layout : LayerGridLayo
     Finset.card_image_of_injective _ (layerGridFaceEdge_injective _)]
   simp
 
+lemma CSSLayerInput.gridZMiddleAugmentedFace_normalized {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX))
+    (hmiddle : input.gridZMiddleIncidence check qubit)
+    (hlower : layout.indexAtVertex (count := nX) zCell.castSucc = none)
+    (hupper : layout.indexAtVertex (count := nX) zCell.succ = none) :
+    (gridZLineAugmentedFaceSupport layout qubit check zCell).image
+        (input.canonGridZCouplingEdge layout) =
+      gridZLineAugmentedFaceSupport layout qubit check zCell := by
+  classical
+  have hlegs : ∀ leg : Fin 4,
+      input.canonGridZCouplingEdge layout
+          (layerGridFaceEdge
+            (.yz check (layout.layerCoordinate qubit) zCell) leg) =
+        layerGridFaceEdge
+          (.yz check (layout.layerCoordinate qubit) zCell) leg := by
+    intro leg
+    fin_cases leg
+    · apply input.canonGridZCouplingEdge_of_fixed
+      simp [layerGridFaceEdge, canonGridDefectEdge, hlower]
+    · exact input.canonGridZCouplingEdge_of_fixed layout _
+        (input.canonGridDefectEdge_z_after_layer layout check qubit zCell)
+    · apply input.canonGridZCouplingEdge_of_fixed
+      simp [layerGridFaceEdge, canonGridDefectEdge, hupper]
+    · exact input.canonGridZCouplingEdge_middle layout check qubit zCell hmiddle
+  have hdata : input.canonGridZCouplingEdge layout
+      (Sum.inl (qubit, Sum.inr ((layout.layerCoordinate check).castSucc, zCell))) =
+      Sum.inl (qubit, Sum.inr ((layout.layerCoordinate check).castSucc, zCell)) :=
+    input.canonGridZCouplingEdge_of_fixed layout _ rfl
+  simp only [gridZLineAugmentedFaceSupport, Finset.image_insert, hdata,
+    Finset.image_image, Function.comp_def, hlegs]
+
+lemma CSSLayerInput.gridZMiddleAugmentedFace_normalized_card {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX))
+    (hmiddle : input.gridZMiddleIncidence check qubit)
+    (hlower : layout.indexAtVertex (count := nX) zCell.castSucc = none)
+    (hupper : layout.indexAtVertex (count := nX) zCell.succ = none) :
+    ((gridZLineAugmentedFaceSupport layout qubit check zCell).image
+        (input.canonGridZCouplingEdge layout)).card = 5 := by
+  rw [input.gridZMiddleAugmentedFace_normalized layout qubit check zCell
+    hmiddle hlower hupper, gridZLineAugmentedFaceSupport_card]
+
 lemma CSSLayerInput.gridZLineAugmentedFace_pauli_eq {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
     (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX))
@@ -3605,6 +3702,60 @@ lemma grid_zLine_middle_opposite_face_overlap {k : ℕ}
       (Finset.univ : Finset (Fin 4)).image (fun leg =>
         input.canonGridDefectEdge layout (layerGridFaceEdge face leg))).card = 1
   simp only [hstar, hface]
+  decide
+
+lemma grid_zLine_middle_coupling_overlaps {k : ℕ}
+    (input : CSSLayerInput 3 k 1 1)
+    (hmiddle : input.gridZMiddleIncidence (0 : Fin 1) (1 : Fin 3)) :
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    let star := (Finset.univ : Finset (Fin 5)).image
+      (layout.zLineFiveLegEdge (nX := 1) (1 : Fin 3) (0 : Fin 1) (0 : Fin 7) false)
+    let inward := gridZLineAugmentedFaceSupport (nX := 1) layout (1 : Fin 3) (0 : Fin 1)
+      (1 : Fin 8)
+    let outward := (Finset.univ : Finset (Fin 4)).image
+      (layerGridFaceEdge (LayerGridFaceCell.yz (layout := layout) (n := 3) (nX := 1) (nZ := 1)
+        (0 : Fin 1) (7 : Fin 16) (1 : Fin 8)))
+    let normalize := input.canonGridZCouplingEdge layout
+    (star.image normalize ∩ inward.image normalize).card = 2 ∧
+      (star.image normalize ∩ outward.image normalize).card = 0 := by
+  let layout : LayerGridLayout := ⟨4, le_rfl⟩
+  let star := layout.zLineFiveLegEdge (nX := 1) (1 : Fin 3) (0 : Fin 1) (0 : Fin 7) false
+  let face : LayerGridFaceCell layout 3 1 1 := .yz 0 (7 : Fin 16) (1 : Fin 8)
+  have hz1 : layout.indexAtVertex (count := 1) (1 : Fin 9) = none :=
+    layout.indexAtVertex_lt_spacing _ (by decide)
+  have hz2 : layout.indexAtVertex (count := 1) (2 : Fin 9) = none :=
+    layout.indexAtVertex_lt_spacing _ (by decide)
+  have hy7 : layout.indexAtVertex (count := 3) (7 : Fin 17) = none := by
+    apply (layout.indexAtVertex_eq_none_iff _).mpr
+    intro qubit heq
+    have hvalue := congrArg Fin.val heq
+    fin_cases qubit <;>
+      norm_num [LayerGridLayout.layerCoordinate, LayerGridLayout.extent, layout] at hvalue
+  have hstar (leg : Fin 5) : input.canonGridZCouplingEdge layout (star leg) = star leg :=
+    input.canonGridZCouplingEdge_of_fixed layout _
+      (input.gridZLineFiveLegEdge_fixed_of_no_x_owner layout _ _ _ _ leg hz1)
+  have hinward := input.gridZMiddleAugmentedFace_normalized layout (1 : Fin 3)
+    (0 : Fin 1) (1 : Fin 8) hmiddle hz1 hz2
+  have hface (leg : Fin 4) :
+      input.canonGridZCouplingEdge layout (layerGridFaceEdge face leg) =
+        layerGridFaceEdge face leg := by
+    fin_cases leg
+    · apply input.canonGridZCouplingEdge_of_fixed
+      simp [face, layerGridFaceEdge, CSSLayerInput.canonGridDefectEdge, hz1]
+    · exact input.canonGridZCouplingEdge_middle layout _ _ _ hmiddle
+    · apply input.canonGridZCouplingEdge_of_fixed
+      simp [face, layerGridFaceEdge, CSSLayerInput.canonGridDefectEdge, hz2]
+    · apply input.canonGridZCouplingEdge_of_fixed
+      simp [face, layerGridFaceEdge, CSSLayerInput.canonGridDefectEdge, hy7]
+  change (((Finset.univ : Finset (Fin 5)).image star).image
+      (input.canonGridZCouplingEdge layout) ∩
+      (gridZLineAugmentedFaceSupport (nX := 1) layout (1 : Fin 3) (0 : Fin 1) (1 : Fin 8)).image
+        (input.canonGridZCouplingEdge layout)).card = 2 ∧
+    (((Finset.univ : Finset (Fin 5)).image star).image
+      (input.canonGridZCouplingEdge layout) ∩
+      ((Finset.univ : Finset (Fin 4)).image (layerGridFaceEdge face)).image
+        (input.canonGridZCouplingEdge layout)).card = 0
+  simp only [hinward, Finset.image_image, Function.comp_def, hstar, hface]
   decide
 
 lemma grid_zLine_middle_opposite_face_retained_noncommuting {k : ℕ}

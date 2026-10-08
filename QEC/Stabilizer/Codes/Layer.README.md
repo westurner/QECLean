@@ -164,6 +164,18 @@ Implemented in `Layer.lean`:
   overlap has cardinality one, so the physical Paulis do not commute. This
   is a conditional candidate-level regression, not a constructed code example.
   Endpoint gating alone therefore cannot repair the middle case.
+- `gridZMiddleIncidence` requires active owners strictly before and after the
+  active data owner. The separate `canonGridZCouplingEdge` preserves that
+  owner's yz z-edge copy at middle incidences, retaining the old normalization
+  elsewhere. It is idempotent and preserves every old fixed point. Under this
+  normalization, the inward face plus its separate data-owned z leg retains
+  all five edges away from X-owner intersections. In the three-owner fixture,
+  `grid_zLine_middle_coupling_overlaps` checks overlap two with that replacement
+  and overlap zero with the outward ordinary face. This tests the distinct
+  black/red seam copies depicted in the paper's middle-z diagram rather than
+  identifying them. The existing physical carrier and candidate dispatchers
+  still use the old normalization; these new support results do not yet prove
+  a replacement-aware physical constructor, point checks, or global CSS.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
