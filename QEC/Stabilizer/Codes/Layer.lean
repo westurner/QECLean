@@ -2565,6 +2565,102 @@ lemma CSSLayerInput.canonGridDefectEdge_z_after_layer {n k nX nZ : ℕ}
         ((layout.layerCoordinate qubit).succ, zCoord))) := by
   simp [canonGridDefectEdge, layout.indexAtVertex_layerCoordinate_succ_eq_none]
 
+lemma CSSLayerInput.canonGridZCouplingEdge_position {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (edge : LayerGridSurfaceEdge layout n nX nZ) :
+    layout.edgePosition (input.canonGridZCouplingEdge layout edge) =
+      layout.edgePosition edge := by
+  classical
+  unfold canonGridZCouplingEdge
+  split_ifs
+  · rfl
+  · exact input.canonGridDefectEdge_position layout edge
+
+abbrev LayerGridZCouplingPhysicalEdge {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
+    (layout : LayerGridLayout) :=
+  {edge : LayerGridSurfaceEdge layout n nX nZ // input.canonGridZCouplingEdge layout edge = edge}
+
+noncomputable instance layerGridZCouplingPhysicalEdgeFintype {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
+    Fintype (LayerGridZCouplingPhysicalEdge input layout) := by
+  classical
+  exact Fintype.ofFinite _
+
+noncomputable def CSSLayerInput.gridZCouplingPhysicalEdge {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (edge : LayerGridSurfaceEdge layout n nX nZ) : LayerGridZCouplingPhysicalEdge input layout :=
+  ⟨input.canonGridZCouplingEdge layout edge,
+    input.canonGridZCouplingEdge_idempotent layout edge⟩
+
+noncomputable def CSSLayerInput.gridZCouplingPhysicalSupport {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (support : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
+    Finset (LayerGridZCouplingPhysicalEdge input layout) := by
+  classical
+  exact support.image (input.gridZCouplingPhysicalEdge layout)
+
+lemma CSSLayerInput.gridZCouplingPhysicalSupport_card {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (support : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
+    (input.gridZCouplingPhysicalSupport layout support).card =
+      (support.image (input.canonGridZCouplingEdge layout)).card := by
+  classical
+  have hval : Function.Injective
+      (Subtype.val : LayerGridZCouplingPhysicalEdge input layout →
+        LayerGridSurfaceEdge layout n nX nZ) := Subtype.val_injective
+  rw [← Finset.card_image_of_injective
+    (input.gridZCouplingPhysicalSupport layout support) hval]
+  simp only [gridZCouplingPhysicalSupport, Finset.image_image]
+  rfl
+
+lemma CSSLayerInput.gridZCouplingPhysicalOverlap_card {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (first second : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
+    (by
+      classical
+      exact (input.gridZCouplingPhysicalSupport layout first ∩
+        input.gridZCouplingPhysicalSupport layout second).card =
+          (first.image (input.canonGridZCouplingEdge layout) ∩
+            second.image (input.canonGridZCouplingEdge layout)).card) := by
+  classical
+  have hval : Function.Injective
+      (Subtype.val : LayerGridZCouplingPhysicalEdge input layout →
+        LayerGridSurfaceEdge layout n nX nZ) := Subtype.val_injective
+  rw [← Finset.card_image_of_injective _ hval, Finset.image_inter _ _ hval]
+  simp only [gridZCouplingPhysicalSupport, Finset.image_image]
+  rfl
+
+noncomputable def CSSLayerInput.gridZCouplingPauli {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (operator : PauliOperator) (support : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
+    NQubitPauliGroupElement (Fintype.card (LayerGridZCouplingPhysicalEdge input layout)) := by
+  classical
+  exact numberedSupportPauli (Fintype.equivFin _) operator
+    (input.gridZCouplingPhysicalSupport layout support)
+
+lemma CSSLayerInput.gridZCouplingPauli_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (operator : PauliOperator) (support : Finset (LayerGridSurfaceEdge layout n nX nZ))
+    (hoperator : operator ≠ PauliOperator.I) :
+    NQubitPauliGroupElement.weight (input.gridZCouplingPauli layout operator support) =
+      (support.image (input.canonGridZCouplingEdge layout)).card := by
+  classical
+  rw [gridZCouplingPauli, weight_numberedSupportPauli _ _ _ hoperator,
+    input.gridZCouplingPhysicalSupport_card]
+
+lemma CSSLayerInput.gridZCouplingPaulis_commute_iff {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (xSupport zSupport : Finset (LayerGridSurfaceEdge layout n nX nZ)) :
+    input.gridZCouplingPauli layout PauliOperator.X xSupport *
+        input.gridZCouplingPauli layout PauliOperator.Z zSupport =
+      input.gridZCouplingPauli layout PauliOperator.Z zSupport *
+        input.gridZCouplingPauli layout PauliOperator.X xSupport ↔
+      Even (xSupport.image (input.canonGridZCouplingEdge layout) ∩
+        zSupport.image (input.canonGridZCouplingEdge layout)).card := by
+  classical
+  rw [gridZCouplingPauli, gridZCouplingPauli, numberedSupportPauli_commutes_iff,
+    input.gridZCouplingPhysicalOverlap_card]
+
 abbrev LayerGridPhysicalEdge {n k nX nZ : ℕ} (input : CSSLayerInput n k nX nZ)
     (layout : LayerGridLayout) :=
   {edge : LayerGridSurfaceEdge layout n nX nZ // input.canonGridDefectEdge layout edge = edge}
@@ -2628,6 +2724,19 @@ lemma CSSLayerInput.gridPhysical_logical_capacity {n k nX nZ : ℕ}
   have hphysical : n ≤ Fintype.card (LayerGridPhysicalEdge input layout) := by
     simpa only [Fintype.card_fin] using hcard
   exact input.logicalQubits_le_physical.trans hphysical
+
+lemma CSSLayerInput.gridZCouplingPhysical_logical_capacity {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout) :
+    k ≤ Fintype.card (LayerGridZCouplingPhysicalEdge input layout) := by
+  let includeOld : LayerGridPhysicalEdge input layout →
+      LayerGridZCouplingPhysicalEdge input layout := fun edge =>
+    ⟨edge.val, input.canonGridZCouplingEdge_of_fixed layout edge.val edge.property⟩
+  have hinjective : Function.Injective includeOld := by
+    intro first second heq
+    apply Subtype.ext
+    exact congrArg (fun edge : LayerGridZCouplingPhysicalEdge input layout => edge.val) heq
+  exact (input.gridPhysical_logical_capacity layout).trans
+    (Fintype.card_le_of_injective includeOld hinjective)
 
 lemma CSSLayerInput.gridPhysicalEdge_injective_of_position {n k nX nZ : ℕ} {α : Type*}
     (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
@@ -3322,6 +3431,18 @@ lemma CSSLayerInput.gridZMiddleAugmentedFace_normalized_card {n k nX nZ : ℕ}
   rw [input.gridZMiddleAugmentedFace_normalized layout qubit check zCell
     hmiddle hlower hupper, gridZLineAugmentedFaceSupport_card]
 
+lemma CSSLayerInput.gridZMiddleAugmentedFacePauli_weight {n k nX nZ : ℕ}
+    (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
+    (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX))
+    (hmiddle : input.gridZMiddleIncidence check qubit)
+    (hlower : layout.indexAtVertex (count := nX) zCell.castSucc = none)
+    (hupper : layout.indexAtVertex (count := nX) zCell.succ = none) :
+    NQubitPauliGroupElement.weight (input.gridZCouplingPauli layout PauliOperator.Z
+      (gridZLineAugmentedFaceSupport layout qubit check zCell)) = 5 := by
+  rw [input.gridZCouplingPauli_weight _ _ _ (by decide)]
+  exact input.gridZMiddleAugmentedFace_normalized_card layout qubit check zCell
+    hmiddle hlower hupper
+
 lemma CSSLayerInput.gridZLineAugmentedFace_pauli_eq {n k nX nZ : ℕ}
     (input : CSSLayerInput n k nX nZ) (layout : LayerGridLayout)
     (qubit : Fin n) (check : Fin nZ) (zCell : Fin (layout.extent nX))
@@ -3757,6 +3878,30 @@ lemma grid_zLine_middle_coupling_overlaps {k : ℕ}
         (input.canonGridZCouplingEdge layout)).card = 0
   simp only [hinward, Finset.image_image, Function.comp_def, hstar, hface]
   decide
+
+lemma grid_zLine_middle_coupling_commutes {k : ℕ}
+    (input : CSSLayerInput 3 k 1 1)
+    (hmiddle : input.gridZMiddleIncidence (0 : Fin 1) (1 : Fin 3)) :
+    let layout : LayerGridLayout := ⟨4, le_rfl⟩
+    let star := (Finset.univ : Finset (Fin 5)).image
+      (layout.zLineFiveLegEdge (nX := 1) (1 : Fin 3) (0 : Fin 1) (0 : Fin 7) false)
+    let inward := gridZLineAugmentedFaceSupport (nX := 1) layout (1 : Fin 3) (0 : Fin 1)
+      (1 : Fin 8)
+    let outward := (Finset.univ : Finset (Fin 4)).image
+      (layerGridFaceEdge (LayerGridFaceCell.yz (layout := layout) (n := 3) (nX := 1) (nZ := 1)
+        (0 : Fin 1) (7 : Fin 16) (1 : Fin 8)))
+    let xStar := input.gridZCouplingPauli layout PauliOperator.X star
+    let zInward := input.gridZCouplingPauli layout PauliOperator.Z inward
+    let zOutward := input.gridZCouplingPauli layout PauliOperator.Z outward
+    xStar * zInward = zInward * xStar ∧ xStar * zOutward = zOutward * xStar := by
+  dsimp only
+  constructor
+  · rw [input.gridZCouplingPaulis_commute_iff,
+      (grid_zLine_middle_coupling_overlaps input hmiddle).1]
+    decide
+  · rw [input.gridZCouplingPaulis_commute_iff,
+      (grid_zLine_middle_coupling_overlaps input hmiddle).2]
+    decide
 
 lemma grid_zLine_middle_opposite_face_retained_noncommuting {k : ℕ}
     (input : CSSLayerInput 3 k 1 1) (hfirst : input.zCheck 0 0 = 1)

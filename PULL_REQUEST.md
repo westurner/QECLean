@@ -169,6 +169,14 @@ input CSS code.
   and candidate dispatchers remain unchanged for their obstruction regressions.
   Migration to a replacement-aware physical carrier, validation against all
   adjacent stars, point/boundary handling, and global CSS remain required.
+- Give the selective middle-z normalization its own finite fixed-point
+  physical carrier and numbered Pauli lift. Prove exact normalized weights,
+  physical even-overlap commutation, spatial position preservation, and the
+  unrestricted logical-capacity bound by injecting the original carrier.
+  Prove physical Pauli weight five for the inward replacement and physical
+  commutation with both fixture Z checks. The original candidate dispatchers
+  remain unchanged; total replacement assembly and tests against every
+  neighboring star still precede any global CSS or output-code claim.
 - Build separate same-type surface X/Z stabilizer groups that include those
   standard boundary candidates. Cross-sector commutation with line/point defect
   checks remains unproved because those checks are not yet encoded.

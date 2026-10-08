@@ -173,9 +173,19 @@ Implemented in `Layer.lean`:
   `grid_zLine_middle_coupling_overlaps` checks overlap two with that replacement
   and overlap zero with the outward ordinary face. This tests the distinct
   black/red seam copies depicted in the paper's middle-z diagram rather than
-  identifying them. The existing physical carrier and candidate dispatchers
+  identifying them. The original physical carrier and candidate dispatchers
   still use the old normalization; these new support results do not yet prove
   a replacement-aware physical constructor, point checks, or global CSS.
+- `LayerGridZCouplingPhysicalEdge` is a separate finite fixed-point carrier for
+  that selective normalization. Its numbered Pauli lift has exact normalized
+  weight and even-overlap commutation laws. Normalization preserves spatial
+  position, and an injection from the original carrier preserves the logical
+  capacity bound for unrestricted owner counts. The inward middle replacement
+  has physical Pauli weight five away from X-owner intersections. The finite
+  `grid_zLine_middle_coupling_commutes` regression proves physical commutation
+  with both the inward replacement and outward ordinary face on this new
+  carrier. It does not validate all neighboring stars, replace the original
+  dispatchers, or construct a global stabilizer code.
 - Candidate four-edge Z plaquettes and interior X stars on xz, xy, and yz
   layers, plus three-edge rough-boundary plaquettes and smooth-boundary stars
   on the orientations specified by the paper. Support cardinalities and Pauli
